@@ -1,0 +1,51 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+set print attribute on .
+set print attribute newline on .
+set print format on .
+
+load tests-base.maude
+load tests-world007.maude
+
+(mod TESTS is
+    pr TESTS-WORLD007 .
+    pr MCP-MESSAGE .
+    pr MCP-PROCESS .
+    pr MCTRANSFORMER .
+
+    ops test : -> Configuration .
+    eq test = w7s1 .
+
+    ops f1 f2 f3 : -> Formula .
+    eq f1 = [] (~ ?hasAnyFailed) .
+    eq f2 = [] (<> ?hasAnyFailed) .
+    eq f3 = <> (~ ?hasAnyFailed) .
+
+    op mc1m mc2m mc3m : -> ModelCheckResult .
+    op mc1s mc2s mc3s : -> String .
+
+    eq mc1m = modelCheck(test, f1) .
+    eq mc2m = modelCheck(test, f2) .
+    eq mc3m = modelCheck(test, f3) .
+
+    eq mc1s = modelCheckTransformer(test, f1) .
+    eq mc2s = modelCheckTransformer(test, f2) .
+    eq mc3s = modelCheckTransformer(test, f3) .
+
+endm)

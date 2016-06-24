@@ -1,0 +1,383 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Expression}
+%)
+
+*** |====================================================================================|
+*** | Expression                                                                         |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod EXPRESSION}
+    This functional module represents an expression in a program.
+%)
+(fmod EXPRESSION is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr VALUE .
+    pr OPSYMBOL .
+    pr VIEW-TYPES .
+
+    pr LIST2{Expression} * (sort List{Expression} to Expressions) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort NoopExpression LiteralExpression OperationExpression UOperationExpression
+         BOperationExpression SequenceExpression NamespaceExpression FunctionExpression
+         BlockExpression ClauseExpression IfExpression CaseExpression TryExpression
+         ReceiveExpression .
+
+    subsort NoopExpression LiteralExpression OperationExpression SequenceExpression
+            NamespaceExpression FunctionExpression BlockExpression ClauseExpression
+            IfExpression CaseExpression TryExpression ReceiveExpression < Expression .
+    subsort UOperationExpression BOperationExpression < OperationExpression .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    --- np: No-operation expression.
+    op @np :     -> NoopExpression [ctor] .
+    op @np : Qid -> NoopExpression [ctor] .
+
+    --- lt: Literal expression.
+    op @lt : Nat Qid     -> LiteralExpression [ctor] .
+    op @lt : Nat Bool    -> LiteralExpression [ctor] .
+    op @lt : Nat Int     -> LiteralExpression [ctor] .
+    op @lt : Nat Float   -> LiteralExpression [ctor] .
+    op @lt : Nat String  -> LiteralExpression [ctor] .
+    op @lt : Nat Nothing -> LiteralExpression [ctor] .
+
+    --- op: Operation expression (unary, binary).
+    op @op : Nat OpSymbol Expression            -> UOperationExpression [ctor] .
+    op @op : Nat OpSymbol Expression Expression -> BOperationExpression [ctor] .
+
+    --- sq: Sequence expression (call parameters).
+    op @sq : Nat Expressions -> SequenceExpression [ctor] .
+
+    --- ns: Namespace expression (namespace, module, package).
+    op @ns : Nat Qid Expressions -> NamespaceExpression [ctor] .
+
+    --- fn: Function expression.
+    op @fn : Nat Qid Expressions -> FunctionExpression [ctor] .
+
+    --- bk: Block expression.
+    op @bk : Nat Expressions -> BlockExpression [ctor] .
+
+    --- cs: Clause expression.
+    op @cs : Nat Expressions Expressions Expressions -> ClauseExpression [ctor] .
+
+    --- if: If-Else sentence expression.
+    op @if : Nat Expressions Expressions -> IfExpression [ctor] .
+
+    --- cf: Case-Of expression.
+    op @cf : Nat Expression Expressions -> CaseExpression [ctor] .
+
+    --- tc: Try-Catch-After/Finally expression.
+    op @tc : Nat Expressions Expressions Expressions Expressions -> TryExpression [ctor] .
+
+    --- rc: Receive-After expression.
+    op @rc : Nat Expressions Expressions -> ReceiveExpression [ctor] .
+
+    ---TODO: Lambdas, list literals, list comprehension expressions...
+    ---...
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeNoopExpression : -> Expression .
+    op makeEndExpression  : -> Expression .
+
+    eq makeNoopExpression = @np .
+    eq makeEndExpression  = @np('end) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: No-operation                                                |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex : NoopExpression -> Nat .
+    op getType  : NoopExpression -> Qid .
+
+    eq getIndex (NE:NoopExpression) = 0 .
+
+    eq getType (@np(T:Qid))        = T:Qid .
+    eq getType (NE:NoopExpression) = 'noop .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Literal                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : LiteralExpression -> Nat .
+    op getSymbol  : LiteralExpression ~> Qid .
+    op getBoolean : LiteralExpression ~> Bool .
+    op getInteger : LiteralExpression ~> Int .
+    op getFloat   : LiteralExpression ~> Float .
+    op getString  : LiteralExpression ~> String .
+
+    op setSymbol  : LiteralExpression Qid    -> LiteralExpression .
+    op setBoolean : LiteralExpression Qid    -> LiteralExpression .
+    op setBoolean : LiteralExpression Bool   -> LiteralExpression .
+    op setInteger : LiteralExpression Int    -> LiteralExpression .
+    op setFloat   : LiteralExpression Float  -> LiteralExpression .
+    op setString  : LiteralExpression String -> LiteralExpression .
+
+    eq getIndex (@lt(I:Nat, V:Qid))     = I:Nat .
+    eq getIndex (@lt(I:Nat, V:Bool))    = I:Nat .
+    eq getIndex (@lt(I:Nat, V:Int))     = I:Nat .
+    eq getIndex (@lt(I:Nat, V:Float))   = I:Nat .
+    eq getIndex (@lt(I:Nat, V:String))  = I:Nat .
+    eq getIndex (@lt(I:Nat, V:Nothing)) = I:Nat .
+
+    eq getSymbol  (@lt(I:Nat, V:Qid))    = V:Qid .
+    eq getBoolean (@lt(I:Nat, 'true))    = true .
+    eq getBoolean (@lt(I:Nat, 'false))   = false .
+    eq getBoolean (@lt(I:Nat, V:Bool))   = V:Bool .
+    eq getInteger (@lt(I:Nat, V:Int))    = V:Int .
+    eq getFloat   (@lt(I:Nat, V:Float))  = V:Float .
+    eq getString  (@lt(I:Nat, V:String)) = V:String .
+
+    eq setSymbol  (L:LiteralExpression, V:Qid)    = @lt(getIndex(L:LiteralExpression), V:Qid) .
+    eq setBoolean (L:LiteralExpression, 'true)    = @lt(getIndex(L:LiteralExpression), true) .
+    eq setBoolean (L:LiteralExpression, 'false)   = @lt(getIndex(L:LiteralExpression), false) .
+    eq setBoolean (L:LiteralExpression, V:Bool)   = @lt(getIndex(L:LiteralExpression), V:Bool) .
+    eq setInteger (L:LiteralExpression, V:Int)    = @lt(getIndex(L:LiteralExpression), V:Int) .
+    eq setFloat   (L:LiteralExpression, V:Float)  = @lt(getIndex(L:LiteralExpression), V:Float) .
+    eq setString  (L:LiteralExpression, V:String) = @lt(getIndex(L:LiteralExpression), V:String) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Operation                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex  : OperationExpression  -> Nat .
+    op getSymbol : OperationExpression  -> OpSymbol .
+    op getLHS    : BOperationExpression -> Expression .
+    op getRHS    : OperationExpression  -> Expression .
+
+    op setLHS : BOperationExpression Expression -> BOperationExpression .
+    op setRHS : OperationExpression Expression  -> OperationExpression .
+
+    eq getIndex (@op(I:Nat, S:OpSymbol, R:Expression))               = I:Nat .
+    eq getIndex (@op(I:Nat, S:OpSymbol, L:Expression, R:Expression)) = I:Nat .
+
+    eq getSymbol (@op(I:Nat, S:OpSymbol, R:Expression))               = S:OpSymbol .
+    eq getSymbol (@op(I:Nat, S:OpSymbol, L:Expression, R:Expression)) = S:OpSymbol .
+
+    eq getLHS (@op(I:Nat, S:OpSymbol, L:Expression, R:Expression)) = L:Expression .
+
+    eq getRHS (@op(I:Nat, S:OpSymbol, R:Expression))               = R:Expression .
+    eq getRHS (@op(I:Nat, S:OpSymbol, L:Expression, R:Expression)) = R:Expression .
+
+    eq setLHS (@op(I:Nat, S:OpSymbol, L:Expression,  R:Expression), L2:Expression) =
+               @op(I:Nat, S:OpSymbol, L2:Expression, R:Expression) .
+
+    eq setRHS (@op(I:Nat, S:OpSymbol, R:Expression), R2:Expression) =
+               @op(I:Nat, S:OpSymbol, R2:Expression) .
+    eq setRHS (@op(I:Nat, S:OpSymbol, L:Expression, R:Expression), R2:Expression) =
+               @op(I:Nat, S:OpSymbol, L:Expression, R2:Expression) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Sequence                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex       : SequenceExpression -> Nat .
+    op getExpressions : SequenceExpression -> Expressions .
+
+    op setExpressions : SequenceExpression Expressions -> SequenceExpression .
+
+    eq getIndex       (@sq(I:Nat, P:Expressions)) = I:Nat .
+    eq getExpressions (@sq(I:Nat, P:Expressions)) = P:Expressions .
+
+    eq setExpressions (@sq(I:Nat, P:Expressions), P2:Expressions) =
+                       @sq(I:Nat, P2:Expressions) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Namespace                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex  : NamespaceExpression -> Nat .
+    op getSymbol : NamespaceExpression -> Qid .
+    op getDefs   : NamespaceExpression -> Expressions .
+
+    eq getIndex  (@ns(I:Nat, S:Qid, D:Expressions)) = I:Nat .
+    eq getSymbol (@ns(I:Nat, S:Qid, D:Expressions)) = S:Qid .
+    eq getDefs   (@ns(I:Nat, S:Qid, D:Expressions)) = D:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Function                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : FunctionExpression -> Nat .
+    op getSymbol  : FunctionExpression -> Qid .
+    op getClauses : FunctionExpression -> Expressions .
+
+    eq getIndex   (@fn(I:Nat, S:Qid, C:Expressions)) = I:Nat .
+    eq getSymbol  (@fn(I:Nat, S:Qid, C:Expressions)) = S:Qid .
+    eq getClauses (@fn(I:Nat, S:Qid, C:Expressions)) = C:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Block                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex : BlockExpression -> Nat .
+    op getBody  : BlockExpression -> Expressions .
+
+    eq getIndex (@bk(I:Nat, D:Expressions)) = I:Nat .
+    eq getBody  (@bk(I:Nat, D:Expressions)) = D:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Clause                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : ClauseExpression -> Nat .
+    op getPattern : ClauseExpression -> Expressions .
+    op getGuard   : ClauseExpression -> Expressions .
+    op getBody    : ClauseExpression -> Expressions .
+
+    eq getIndex   (@cs(I:Nat, P:Expressions, G:Expressions, B:Expressions)) = I:Nat .
+    eq getPattern (@cs(I:Nat, P:Expressions, G:Expressions, B:Expressions)) = P:Expressions .
+    eq getGuard   (@cs(I:Nat, P:Expressions, G:Expressions, B:Expressions)) = G:Expressions .
+    eq getBody    (@cs(I:Nat, P:Expressions, G:Expressions, B:Expressions)) = B:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: If-Else                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : IfExpression -> Nat .
+    op getClauses : IfExpression -> Expressions .
+    op getElse    : IfExpression -> Expressions .
+
+    eq getIndex   (@if(I:Nat, C:Expressions, E:Expressions)) = I:Nat .
+    eq getClauses (@if(I:Nat, C:Expressions, E:Expressions)) = C:Expressions .
+    eq getElse    (@if(I:Nat, C:Expressions, E:Expressions)) = E:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Case-Of                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : CaseExpression -> Nat .
+    op getVictim  : CaseExpression -> Expression .
+    op getClauses : CaseExpression -> Expressions .
+
+    op setVictim : CaseExpression Expression -> CaseExpression .
+
+    eq getIndex   (@cf(I:Nat, V:Expression, C:Expressions)) = I:Nat .
+    eq getVictim  (@cf(I:Nat, V:Expression, C:Expressions)) = V:Expression .
+    eq getClauses (@cf(I:Nat, V:Expression, C:Expressions)) = C:Expressions .
+
+    eq setVictim (@cf(I:Nat, V:Expression,  C:Expressions), V2:Expression) =
+                  @cf(I:Nat, V2:Expression, C:Expressions) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Try-Catch-After/Finally                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : TryExpression -> Nat .
+    op getVictim  : TryExpression -> Expressions .
+    op getClauses : TryExpression -> Expressions .
+    op getCatches : TryExpression -> Expressions .
+    op getAfters  : TryExpression -> Expressions .
+
+    op setVictim : TryExpression Expressions -> TryExpression .
+
+    eq getIndex   (@tc(I:Nat, V:Expressions, L:Expressions, T:Expressions, F:Expressions)) = I:Nat .
+    eq getVictim  (@tc(I:Nat, V:Expressions, L:Expressions, T:Expressions, F:Expressions)) = V:Expressions .
+    eq getClauses (@tc(I:Nat, V:Expressions, L:Expressions, T:Expressions, F:Expressions)) = L:Expressions .
+    eq getCatches (@tc(I:Nat, V:Expressions, L:Expressions, T:Expressions, F:Expressions)) = T:Expressions .
+    eq getAfters  (@tc(I:Nat, V:Expressions, L:Expressions, T:Expressions, F:Expressions)) = F:Expressions .
+
+    eq setVictim (@tc(I:Nat, V:Expressions,  L:Expressions, T:Expressions, F:Expressions), V2:Expressions) =
+                  @tc(I:Nat, V2:Expressions, L:Expressions, T:Expressions, F:Expressions) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Receive-After                                               |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex   : ReceiveExpression -> Nat .
+    op getClauses : ReceiveExpression -> Expressions .
+    op getAfters  : ReceiveExpression -> Expressions .
+
+    eq getIndex   (@rc(I:Nat, C:Expressions, A:Expressions)) = I:Nat .
+    eq getClauses (@rc(I:Nat, C:Expressions, A:Expressions)) = C:Expressions .
+    eq getAfters  (@rc(I:Nat, C:Expressions, A:Expressions)) = A:Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isSymbol  : LiteralExpression   -> Bool .
+    op isBoolean : LiteralExpression   -> Bool .
+    op isInteger : LiteralExpression   -> Bool .
+    op isFloat   : LiteralExpression   -> Bool .
+    op isString  : LiteralExpression   -> Bool .
+    op isUnary   : OperationExpression -> Bool .
+    op isBinary  : OperationExpression -> Bool .
+
+    eq isSymbol  (@lt(I:Nat, V:Qid))        = true .
+    eq isSymbol  (L:LiteralExpression)      = false [owise] .
+
+    eq isBoolean (@lt(I:Nat, 'true))        = true .
+    eq isBoolean (@lt(I:Nat, 'false))       = true .
+    eq isBoolean (@lt(I:Nat, V:Bool))       = true .
+    eq isBoolean (L:LiteralExpression)      = false [owise] .
+
+    eq isInteger (@lt(I:Nat, V:Int))        = true .
+    eq isInteger (L:LiteralExpression)      = false [owise] .
+
+    eq isFloat   (@lt(I:Nat, V:Float))      = true .
+    eq isFloat   (L:LiteralExpression)      = false [owise] .
+
+    eq isString  (@lt(I:Nat, V:String))     = true .
+    eq isString  (L:LiteralExpression)      = false [owise] .
+
+    eq isUnary   (UOE:UOperationExpression) = true .
+    eq isUnary   (OE:OperationExpression)   = false [owise] .
+
+    eq isBinary  (BOE:BOperationExpression) = true .
+    eq isBinary  (OE:OperationExpression)   = false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Conversion                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op toValue   : LiteralExpression  -> Value .
+    op toValue   : SequenceExpression -> Value .
+    op toValues  : SequenceExpression -> Values .
+    op $toValues : Expressions        -> Values .
+
+    eq toValue (@lt(I:Nat, V:Qid))     = makeValue(V:Qid) .
+    eq toValue (@lt(I:Nat, V:Bool))    = makeValue(V:Bool) .
+    eq toValue (@lt(I:Nat, V:Int))     = makeValue(V:Int) .
+    eq toValue (@lt(I:Nat, V:Float))   = makeValue(V:Float) .
+    eq toValue (@lt(I:Nat, V:String))  = makeValue(V:String) .
+    eq toValue (@lt(I:Nat, V:Nothing)) = makeValue(V:Nothing) .
+
+    eq toValue (@sq(I:Nat, P:Expressions)) = makeValue(makeListValue($toValues(P:Expressions))) .
+
+    eq toValues (@sq(I:Nat, P:Expressions)) = $toValues(P:Expressions) .
+
+    eq $toValues (E:Expression ES:Expressions) = toValue(E:Expression) $toValues(ES:Expressions) .
+    eq $toValues (ES:Expressions)              = nil [owise] .
+
+endfm)

@@ -1,0 +1,152 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Status}
+%)
+
+*** |====================================================================================|
+*** | Status                                                                             |
+*** |====================================================================================|
+
+---(%
+\subsection{omod STATUS}
+    This object module represents the status of the machine.
+
+\paragraph{class Status}
+    This class represents the global and shared status of the nodes.
+    \begin{itemize}
+    \item \textbf{program:}
+        The program definitions to execute code.
+    \item \textbf{nextIndex:}
+        The next index to assign.
+    \end{itemize}
+%)
+(omod STATUS is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr EXPRESSION .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort StatusObject .
+
+    subsort StatusObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class Status | program   : Expressions,
+                   nextIndex : NzNat .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : StatusObject if isStatus(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newStatus : Expressions                -> Object .
+    op newStatus : Expressions NzNat          -> Object .
+    op newStatus : Expressions Bool NzNat     -> Object .
+    op newStatus : Oid Expressions            -> Object .
+    op newStatus : Oid Expressions NzNat      -> Object .
+    op newStatus : Oid Expressions Bool NzNat -> Object .
+
+    eq newStatus (PR:Expressions) =
+        newStatus ('status, PR:Expressions, true, 1) .
+
+    eq newStatus (PR:Expressions, NI:NzNat) =
+        newStatus ('status, PR:Expressions, true, NI:NzNat) .
+
+    eq newStatus (PR:Expressions, MA:Bool, NI:NzNat) =
+        newStatus ('status, PR:Expressions, MA:Bool, NI:NzNat) .
+
+    eq newStatus (O:Oid, PR:Expressions) =
+        newStatus (O:Oid, PR:Expressions, true, 1) .
+
+    eq newStatus (O:Oid, PR:Expressions, NI:NzNat) =
+        newStatus (O:Oid, PR:Expressions, true, NI:NzNat) .
+
+    eq newStatus (O:Oid, PR:Expressions, MA:Bool, NI:NzNat) =
+        < O:Oid : Status | program   : PR:Expressions,
+                           nextIndex : NI:NzNat > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid       : StatusObject -> Oid .
+    op getProgram   : StatusObject -> Expressions .
+    op getNextIndex : StatusObject -> NzNat .
+
+    op setOid       : StatusObject Oid         -> StatusObject .
+    op setProgram   : StatusObject Expressions -> StatusObject .
+    op setNextIndex : StatusObject NzNat       -> StatusObject .
+
+    op incNextIndex : StatusObject -> StatusObject .
+
+    eq getOid (< O:Oid : Status | program   : PR:Expressions,
+                                  nextIndex : NI:NzNat >) = O:Oid .
+    eq getProgram (< O:Oid : Status | program   : PR:Expressions,
+                                      nextIndex : NI:NzNat >) = PR:Expressions .
+    eq getNextIndex (< O:Oid : Status | program   : PR:Expressions,
+                                        nextIndex : NI:NzNat >) = NI:NzNat .
+
+    eq setOid (< O:Oid : Status | program   : PR:Expressions,
+                                  nextIndex : NI:NzNat >, O2:Oid) =
+        < O2:Oid : Status | program   : PR:Expressions,
+                            nextIndex : NI:NzNat > .
+    eq setProgram (< O:Oid : Status | program   : PR:Expressions,
+                                      nextIndex : NI:NzNat >, PR2:Expressions) =
+        < O:Oid : Status | program   : PR2:Expressions,
+                           nextIndex : NI:NzNat > .
+    eq setNextIndex (< O:Oid : Status | program   : PR:Expressions,
+                                        nextIndex : NI:NzNat >, NI2:NzNat) =
+        < O:Oid : Status | program   : PR:Expressions,
+                           nextIndex : NI2:NzNat > .
+
+    eq incNextIndex (SO:StatusObject) =
+        setNextIndex(SO:StatusObject, s(getNextIndex(SO:StatusObject))) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isStatus : Object -> Bool .
+
+    eq isStatus (< O:Oid : Status | program     : PR:Expressions,
+                                    nextIndex   : NI:NzNat >) = true .
+    eq isStatus (OBJ) = false [owise] .
+
+endom)

@@ -1,0 +1,369 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Temporal}
+%)
+
+*** |====================================================================================|
+*** | Context                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod TEMPORAL}
+    This functional module represents the temporal execution of an expression.
+%)
+(fmod TEMPORAL is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr EXPRESSION .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort TemporalExpression .
+
+    subsort TemporalExpression < Expression .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @zz : Value -> TemporalExpression [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Virtual/Abstract                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    op isVariable : Qid -> Bool .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeTemporalExpression : Value             -> TemporalExpression .
+    op makeTemporalExpression : LiteralExpression -> TemporalExpression .
+
+    eq makeTemporalExpression (V:Value) =
+        @zz(V:Value) .
+
+    eq makeTemporalExpression (E:LiteralExpression) =
+        @zz(toValue(E:LiteralExpression)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isReady  : Expression  -> Bool .
+    op areReady : Expressions -> Bool .
+
+    op isSymbolVariable    : Value      -> Bool .
+    op isSymbolNotVariable : Value      -> Bool .
+    op isSymbolVariable    : Expression -> Bool .
+    op isSymbolNotVariable : Expression -> Bool .
+
+    op isExecutable  : Expression  -> Bool .
+    op areExecutable : Expressions -> Bool .
+
+    op isPattern : Expression  -> Bool .
+
+    eq isReady (E:TemporalExpression) = true .
+    eq isReady (E:NoopExpression)     = true .
+    eq isReady (E:LiteralExpression)  = not isSymbolVariable(E:LiteralExpression) .
+    eq isReady (E:SequenceExpression) = areReady(getExpressions(E:SequenceExpression)) .
+    eq isReady (E:Expression)         = false [owise] .
+
+    eq areReady (E:Expression ES:Expressions) =
+        if isReady(E:Expression) then
+            areReady(ES:Expressions)
+        else
+            false
+        fi .
+    eq areReady (ES:Expressions) =
+        true [owise] .
+
+    eq isSymbolVariable (V:Value) =
+        if isSymbol(V:Value) then
+            isVariable(getSymbol(V:Value))
+        else
+            false
+        fi .
+
+    eq isSymbolNotVariable (V:Value) =
+        if isSymbol(V:Value) then
+            not isVariable(getSymbol(V:Value))
+        else
+            false
+        fi .
+
+    eq isSymbolVariable (L:LiteralExpression) =
+        if isSymbol(L:LiteralExpression) then
+            isVariable(getSymbol(L:LiteralExpression))
+        else
+            false
+        fi .
+    eq isSymbolVariable (E:Expression) =
+        false [owise] .
+
+    eq isSymbolNotVariable (L:LiteralExpression) =
+        if isSymbol(L:LiteralExpression) then
+            not isVariable(getSymbol(L:LiteralExpression))
+        else
+            false
+        fi .
+    eq isSymbolNotVariable (E:Expression) =
+        false [owise] .
+
+    eq  isExecutable (E:TemporalExpression)  = true .
+    eq  isExecutable (E:NoopExpression)      = true .
+    eq  isExecutable (E:LiteralExpression)   = not isSymbolVariable(E:LiteralExpression) .
+    ceq isExecutable (E:OperationExpression) = isReady(getRHS(E:OperationExpression))
+                                               if isUnary(E:OperationExpression) .
+    ceq isExecutable (E:OperationExpression) = isReady(getLHS(E:OperationExpression))
+                                               and isReady(getRHS(E:OperationExpression))
+                                               if isBinary(E:OperationExpression)
+                                               /\ @set =/= getSymbol(E:OperationExpression) .
+    ceq isExecutable (E:OperationExpression) = (isPattern(getLHS(E:OperationExpression))
+                                               or isReady(getLHS(E:OperationExpression)))
+                                               and isReady(getRHS(E:OperationExpression))
+                                               if isBinary(E:OperationExpression)
+                                               /\ @set == getSymbol(E:OperationExpression) .
+    eq  isExecutable (E:SequenceExpression)  = areReady(getExpressions(E:SequenceExpression)) .
+    eq  isExecutable (E:BlockExpression)     = true .
+    eq  isExecutable (E:IfExpression)        = true .
+    eq  isExecutable (E:CaseExpression)      = isReady(getVictim(E:CaseExpression)) .
+    eq  isExecutable (E:TryExpression)       = areReady(getVictim(E:TryExpression)) .
+    eq  isExecutable (E:ReceiveExpression)   = true .
+    eq  isExecutable (E:Expression)          = false [owise] .
+
+    eq areExecutable (E:Expression ES:Expressions) =
+        if isExecutable(E:Expression) then
+            areExecutable(ES:Expressions)
+        else
+            false
+        fi .
+    eq areExecutable (ES:Expressions) =
+        true [owise] .
+
+    ---TODO: Complete other pattern matching expressions...
+    eq isPattern (E:LiteralExpression) = isSymbolVariable(E:LiteralExpression) .
+    eq isPattern (E:Expression)        = false [owise] .
+    ---...
+
+    *** |------------------------------------------------------------------------------|
+    *** | Conversion                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op getIndex  : TemporalExpression     -> Nat .
+    op toValue   : TemporalExpression     -> Value .
+    op getValue  : Expression             -> Value .
+    op toString  : Expressions            -> String .
+    op $toString : Expressions String     -> String .
+    op toString  : Nat Expressions        -> String .
+    op $toString : Nat Expressions String -> String .
+
+    eq getIndex (TE:TemporalExpression) = 0 .
+
+    eq toValue (@zz(V:Value)) = V:Value .
+
+    eq getValue (E:LiteralExpression)  = toValue(E:LiteralExpression) .
+    eq getValue (E:TemporalExpression) = toValue(E:TemporalExpression) .
+    eq getValue (E:SequenceExpression) = toValue(E:SequenceExpression) .
+    eq getValue (E:Expression)         = makeValue(nothing) [owise] .
+
+    eq toString (ES:Expressions) = $toString(ES:Expressions, "") .
+
+    eq $toString (E:Expression ES:Expressions, S:String) =
+        $toString(ES:Expressions, S:String + toString(getValue(E:Expression))) .
+    eq $toString (ES:Expressions, S:String) =
+        S:String [owise] .
+
+    eq toString (N:Nat, ES:Expressions) = $toString(N:Nat, ES:Expressions, "") .
+
+    eq $toString (N:Nat, E:Expression ES:Expressions, S:String) =
+        $toString(N:Nat, ES:Expressions, S:String + toString(N:Nat, getValue(E:Expression))) .
+    eq $toString (N:Nat, ES:Expressions, S:String) =
+        S:String [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op findFirstReady     : Expression             -> Expression .
+    op $findFirstReady    : Expressions            -> Expression .
+    op replaceFirstReady  : Expression Expression  -> Expression .
+    op $replaceFirstReady : Expressions Expression -> Expressions .
+
+    ceq findFirstReady (E:OperationExpression) =
+        if isReady(R:Expression) then
+            E:OperationExpression
+        else
+            findFirstReady(R:Expression)
+        fi
+        if isUnary(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression) .
+    ceq findFirstReady (E:OperationExpression) =
+        (if isReady(L:Expression) and isReady(R:Expression) then
+            E:OperationExpression
+        else if isReady(L:Expression) then
+            findFirstReady(R:Expression)
+        else
+            findFirstReady(L:Expression)
+        fi fi)
+        if isBinary(E:OperationExpression)
+        /\ L:Expression := getLHS(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression)
+        /\ @set =/= getSymbol(E:OperationExpression) .
+    ceq findFirstReady (E:OperationExpression) =
+        (if isPattern(L:Expression) and isReady(R:Expression) then
+            E:OperationExpression
+        else if isPattern(L:Expression) or isReady(L:Expression) then
+            findFirstReady(R:Expression)
+        else
+            findFirstReady(L:Expression)
+        fi fi)
+        if isBinary(E:OperationExpression)
+        /\ L:Expression := getLHS(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression)
+        /\ @set == getSymbol(E:OperationExpression) .
+    ceq findFirstReady (E:SequenceExpression) =
+        if areReady(P:Expressions) then
+            E:SequenceExpression
+        else
+            $findFirstReady(P:Expressions)
+        fi
+        if P:Expressions := getExpressions(E:SequenceExpression) .
+    ceq findFirstReady (E:CaseExpression) =
+        if isReady(V:Expression) then
+            E:CaseExpression
+        else
+            findFirstReady(V:Expression)
+        fi
+        if V:Expression := getVictim(E:CaseExpression) .
+    ceq findFirstReady (E:TryExpression) =
+        if areReady(V:Expressions) then
+            E:TryExpression
+        else
+            $findFirstReady(V:Expressions)
+        fi
+        if V:Expressions := getVictim(E:TryExpression) .
+    eq findFirstReady (E:Expression) =
+        E:Expression [owise] .
+
+    eq $findFirstReady (E:Expression ES:Expressions) =
+        if isReady(E:Expression) then
+            $findFirstReady(ES:Expressions)
+        else
+            findFirstReady(E:Expression)
+        fi .
+    eq $findFirstReady (ES:Expressions) =
+        makeNoopExpression [owise] .
+
+    ceq replaceFirstReady (E:OperationExpression, X:Expression) =
+        if isReady(R:Expression) then
+            X:Expression
+        else
+            setRHS(
+                E:OperationExpression,
+                replaceFirstReady(R:Expression, X:Expression)
+            )
+        fi
+        if isUnary(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression) .
+    ceq replaceFirstReady (E:OperationExpression, X:Expression) =
+        (if isReady(L:Expression) and isReady(R:Expression) then
+            X:Expression
+        else if isReady(L:Expression) then
+            setRHS(
+	            E:OperationExpression,
+	            replaceFirstReady(R:Expression, X:Expression)
+            )
+        else
+            setLHS(
+	            E:OperationExpression,
+	            replaceFirstReady(L:Expression, X:Expression)
+            )
+        fi fi)
+        if isBinary(E:OperationExpression)
+        /\ L:Expression := getLHS(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression)
+        /\ @set =/= getSymbol(E:OperationExpression) .
+    ceq replaceFirstReady (E:OperationExpression, X:Expression) =
+        (if isPattern(L:Expression) and isReady(R:Expression) then
+            X:Expression
+        else if isPattern(L:Expression) or isReady(L:Expression) then
+            setRHS(
+                E:OperationExpression,
+                replaceFirstReady(R:Expression, X:Expression)
+            )
+        else
+            setLHS(
+                E:OperationExpression,
+                replaceFirstReady(L:Expression, X:Expression)
+            )
+        fi fi)
+        if isBinary(E:OperationExpression)
+        /\ L:Expression := getLHS(E:OperationExpression)
+        /\ R:Expression := getRHS(E:OperationExpression)
+        /\ @set == getSymbol(E:OperationExpression) .
+    ceq replaceFirstReady (E:SequenceExpression, X:Expression) =
+        if areReady(P:Expressions) then
+            X:Expression
+        else
+            setExpressions(
+                E:SequenceExpression,
+                $replaceFirstReady(P:Expressions, X:Expression)
+            )
+        fi
+        if P:Expressions := getExpressions(E:SequenceExpression) .
+    ceq replaceFirstReady (E:CaseExpression, X:Expression) =
+        if isReady(V:Expression) then
+            X:Expression
+        else
+            setVictim(
+                E:CaseExpression,
+                replaceFirstReady(V:Expression, X:Expression)
+            )
+        fi
+        if V:Expression := getVictim(E:CaseExpression) .
+    ceq replaceFirstReady (E:TryExpression, X:Expression) =
+        if areReady(V:Expressions) then
+            X:Expression
+        else
+            setVictim(
+                E:TryExpression,
+                $replaceFirstReady(V:Expressions, X:Expression)
+            )
+        fi
+        if V:Expressions := getVictim(E:TryExpression) .
+    eq replaceFirstReady (E:Expression, X:Expression) =
+        X:Expression [owise] .
+
+    eq $replaceFirstReady (E:Expression ES:Expressions, X:Expression) =
+        if isReady(E:Expression) then
+            E:Expression $replaceFirstReady(ES:Expressions, X:Expression)
+        else
+            replaceFirstReady(E:Expression, X:Expression) ES:Expressions
+        fi .
+    eq $replaceFirstReady (ES:Expressions, X:Expression) =
+        ES:Expressions [owise] .
+
+endfm)

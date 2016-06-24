@@ -1,0 +1,44 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+(mod TESTS-BASE is
+    pr QID .
+    pr CONVERSION .
+    pr CONFIGURATION .
+    pr RUNNER .
+
+    pr LIST2{Nat}  * (sort List{Nat}  to Nats) .
+    pr LIST2{Bool} * (sort List{Bool} to Bools) .
+
+    op makeConfigAndStatus : Qid Nat Configuration Qid Expressions -> Configuration .
+    eq makeConfigAndStatus (O1:Qid, NN:Nat, SC:Configuration, O2:Qid, PR:Expressions) =
+        newConfig(O1:Qid, nil, NN:Nat, SC:Configuration) newStatus(O2:Qid, PR:Expressions) .
+
+    op makeConfigAndStatus : Qid InputFiles Nat Configuration Qid Expressions -> Configuration .
+    eq makeConfigAndStatus (O1:Qid, IF:InputFiles, NN:Nat, SC:Configuration, O2:Qid, PR:Expressions) =
+        newConfig(O1:Qid, IF:InputFiles, NN:Nat, SC:Configuration) newStatus(O2:Qid, PR:Expressions) .
+
+    op makeWorldInit : Configuration -> Configuration .
+    ceq makeWorldInit (W1:Configuration) = W5:Configuration
+        if W2:Configuration := makeStatus(W1:Configuration)
+        /\ W3:Configuration := makeNodes(W2:Configuration)
+        /\ W4:Configuration := makeProcesses(W3:Configuration)
+        /\ W5:Configuration := filterConfigObjects(W4:Configuration) .
+
+endm)
+

@@ -1,0 +1,47 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Nothing}
+%)
+
+*** |====================================================================================|
+*** | Nothing                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod NOTHING}
+    This functional module represents an utility to fill undefined data in the
+    current system specification. Imagine you have some operation with some
+    parameters of any sort, but there isn't any operation defined yet, you
+    would be able to use this sort to temporaly handle the situation.
+%)
+(fmod NOTHING is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr VIEW-TYPES .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op nothing : -> Nothing [ctor] .
+
+endfm)

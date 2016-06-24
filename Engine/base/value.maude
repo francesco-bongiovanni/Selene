@@ -1,0 +1,654 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Value}
+%)
+
+*** |====================================================================================|
+*** | Value                                                                              |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod VALUE}
+    This functional module represents any kind of values.
+
+\paragraph{Value}
+    This operator represents a generic value.
+    \begin{itemize}
+    \item \textbf{value:}
+        The value.
+    \end{itemize}
+
+\paragraph{ListValue}
+    This operator represents a list of values.
+    \begin{itemize}
+    \item \textbf{values:}
+        The values.
+    \end{itemize}
+
+\paragraph{TupleValue}
+    This operator represents a tuple of values.
+    \begin{itemize}
+    \item \textbf{values:}
+        The values.
+    \end{itemize}
+
+\paragraph{Closure}
+    This operator represents a closure inside a function.
+    \begin{itemize}
+    \item \textbf{symbol:}
+        The name of the value.
+    \item \textbf{value:}
+        The content of the value.
+    \end{itemize}
+
+\paragraph{FunctionInfo}
+    This operator represents a function information value.
+    \begin{itemize}
+    \item \textbf{funcPath:}
+        The path of the function inside the program.
+    \item \textbf{funcType:}
+        The type of the function.
+    \item \textbf{closures:}
+        The closures of the function.
+    \end{itemize}
+%)
+(fmod VALUE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr NOTHING .
+    pr REFERENCE .
+    pr VIEW-TYPES .
+    pr SET{String} .
+
+    pr LIST2{Value}   * (sort List{Value}   to Values) .
+    pr LIST2{Closure} * (sort List{Closure} to Closures) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ContainerValue ListValue TupleValue FunctionInfo FunctionType Error .
+
+    subsort ListValue TupleValue < ContainerValue .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @vl : Qid          -> Value [ctor] .
+    op @vl : Bool         -> Value [ctor] .
+    op @vl : Nat          -> Value [ctor] .
+    op @vl : Int          -> Value [ctor] .
+    op @vl : Float        -> Value [ctor] .
+    op @vl : String       -> Value [ctor] .
+    op @vl : ListValue    -> Value [ctor] .
+    op @vl : TupleValue   -> Value [ctor] .
+    op @vl : References   -> Value [ctor] .
+    op @vl : FunctionInfo -> Value [ctor] .
+    op @vl : Nat Nat      -> Value [ctor] .
+    op @vl : Error        -> Value [ctor] .
+    op @vl : Nothing      -> Value [ctor] .
+
+    op @ls : Values -> ListValue  [ctor] .
+    op @tp : Values -> TupleValue [ctor] .
+
+    op @cl : Qid Value -> Closure [ctor] .
+
+    op @fi : Qids FunctionType Closures -> FunctionInfo [ctor] .
+
+    op @StaticFunction  : -> FunctionType [ctor] .
+    op @LambdaFunction  : -> FunctionType [ctor] .
+    op @ObjectFunction  : -> FunctionType [ctor] .
+    op @InvalidFunction : -> FunctionType [ctor] .
+
+    op @InvalidContext   : -> Error [ctor] .
+    op @Error            : -> Error [ctor] .
+    op @ClauseError      : -> Error [ctor] .
+    op @GetValueError    : -> Error [ctor] .
+    op @GetFunctionError : -> Error [ctor] .
+    op @SetValueError    : -> Error [ctor] .
+    op @ExecuteError     : -> Error [ctor] .
+    op @OperationError   : -> Error [ctor] .
+    op @MatchError       : -> Error [ctor] .
+    op @ArgumentsError   : -> Error [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    vars S1 S2 : String .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeValue :              -> Value .
+    op makeValue : Qid          -> Value .
+    op makeValue : Bool         -> Value .
+    op makeValue : Nat          -> Value .
+    op makeValue : Int          -> Value .
+    op makeValue : Float        -> Value .
+    op makeValue : String       -> Value .
+    op makeValue : ListValue    -> Value .
+    op makeValue : TupleValue   -> Value .
+    op makeValue : References   -> Value .
+    op makeValue : FunctionInfo -> Value .
+    op makeValue : Nat Nat      -> Value .
+    op makeValue : Error        -> Value .
+    op makeValue : Nothing      -> Value .
+
+    op makeListValue  : Values -> ListValue .
+    op makeTupleValue : Values -> TupleValue .
+
+    op makeClosure : Qid Value -> Closure .
+
+    op makeFunctionValue : Qids                       -> Value .
+    op makeFunctionValue : Qids FunctionType Closures -> Value .
+    op makeFunctionInfo  : Qids                       -> FunctionInfo .
+    op makeFunctionInfo  : Qids FunctionType Closures -> FunctionInfo .
+
+    op makeInvalidFunctionInfo : -> FunctionInfo .
+
+    op makeClauseError      : -> Value .
+    op makeGetValueError    : -> Value .
+    op makeGetFunctionError : -> Value .
+    op makeSetValueError    : -> Value .
+    op makeExecuteError     : -> Value .
+    op makeOperationError   : -> Value .
+    op makeMatchError       : -> Value .
+    op makeArgumentsError   : -> Value .
+
+    eq makeValue                  = @vl(nothing) .
+    eq makeValue (Q:Qid)          = @vl(Q:Qid) .
+    eq makeValue (B:Bool)         = @vl(B:Bool) .
+    eq makeValue (N:Nat)          = @vl(N:Nat) .
+    eq makeValue (I:Int)          = @vl(I:Int) .
+    eq makeValue (F:Float)        = @vl(F:Float) .
+    eq makeValue (S:String)       = @vl(S:String) .
+    eq makeValue (L:ListValue)    = @vl(L:ListValue) .
+    eq makeValue (T:TupleValue)   = @vl(T:TupleValue) .
+    eq makeValue (R:References)   = @vl(R:References) .
+    eq makeValue (F:FunctionInfo) = @vl(F:FunctionInfo) .
+    eq makeValue (N:Nat, P:Nat)   = @vl(N:Nat, P:Nat) .
+    eq makeValue (E:Error)        = @vl(E:Error) .
+    eq makeValue (N:Nothing)      = @vl(N:Nothing) .
+
+    eq makeListValue  (VS:Values) = @ls(VS:Values) .
+    eq makeTupleValue (VS:Values) = @tp(VS:Values) .
+
+    eq makeClosure (Q:Qid, V:Value) = @cl(Q:Qid, V:Value) .
+
+    eq makeFunctionValue (Q:Qids) =
+        makeValue(makeFunctionInfo(Q:Qids)) .
+
+    eq makeFunctionValue (Q:Qids, T:FunctionType, C:Closures) =
+        makeValue(makeFunctionInfo(Q:Qids, T:FunctionType, C:Closures)) .
+
+    eq makeFunctionInfo (Q:Qids) =
+        makeFunctionInfo(Q:Qids, @StaticFunction, nil) .
+
+    eq makeFunctionInfo (Q:Qids, T:FunctionType, C:Closures) =
+        @fi(Q:Qids, T:FunctionType, C:Closures) .
+
+    eq makeInvalidFunctionInfo =
+        makeFunctionInfo(nil, @InvalidFunction, nil) .
+
+    eq makeClauseError      = makeValue(@ClauseError) .
+    eq makeGetValueError    = makeValue(@GetValueError) .
+    eq makeGetFunctionError = makeValue(@GetFunctionError) .
+    eq makeSetValueError    = makeValue(@SetValueError) .
+    eq makeExecuteError     = makeValue(@ExecuteError) .
+    eq makeOperationError   = makeValue(@OperationError) .
+    eq makeMatchError       = makeValue(@MatchError) .
+    eq makeArgumentsError   = makeValue(@ArgumentsError) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getSymbol   : Value ~> Qid .
+    op getBoolean  : Value ~> Bool .
+    op getNatural  : Value ~> Nat .
+    op getInteger  : Value ~> Int .
+    op getFloat    : Value ~> Float .
+    op getString   : Value ~> String .
+    op getList     : Value ~> ListValue .
+    op getTuple    : Value ~> TupleValue .
+    op getPointer  : Value ~> References .
+    op getFuncInfo : Value ~> FunctionInfo .
+    op getFuncPath : Value ~> Qids .
+    op getFuncType : Value ~> FunctionType .
+    op getClosures : Value ~> Closures .
+    op getPid      : Value ~> Pid .
+    op getNode     : Value ~> Nat .
+    op getProcess  : Value ~> Nat .
+    op getError    : Value ~> Error .
+    op getNothing  : Value ~> Nothing .
+
+    op getValues : ListValue  -> Values .
+    op getValues : TupleValue -> Values .
+    op getValues : Value      -> Values .
+
+    op getSymbol : Closure -> Qid .
+    op getValue  : Closure -> Value .
+
+    op getFuncPath : FunctionInfo -> Qids .
+    op getFuncType : FunctionInfo -> FunctionType .
+    op getClosures : FunctionInfo -> Closures .
+
+    eq getSymbol   (@vl(Q:Qid))          = Q:Qid .
+    eq getBoolean  (@vl('true))          = true .
+    eq getBoolean  (@vl('false))         = false .
+    eq getBoolean  (@vl(B:Bool))         = B:Bool .
+    eq getNatural  (@vl(N:Nat))          = N:Nat .
+    eq getInteger  (@vl(I:Int))          = I:Int .
+    eq getFloat    (@vl(F:Float))        = F:Float .
+    eq getString   (@vl(S:String))       = S:String .
+    eq getList     (@vl(L:ListValue))    = L:ListValue .
+    eq getTuple    (@vl(T:TupleValue))   = T:TupleValue .
+    eq getPointer  (@vl(R:References))   = R:References .
+    eq getFuncInfo (@vl(F:FunctionInfo)) = F:FunctionInfo .
+    eq getFuncPath (@vl(F:FunctionInfo)) = getFuncPath(F:FunctionInfo) .
+    eq getFuncType (@vl(F:FunctionInfo)) = getFuncType(F:FunctionInfo) .
+    eq getClosures (@vl(F:FunctionInfo)) = getClosures(F:FunctionInfo) .
+    eq getPid      (@vl(N:Nat, P:Nat))   = makePid(N:Nat, P:Nat) .
+    eq getNode     (@vl(N:Nat, P:Nat))   = N:Nat .
+    eq getProcess  (@vl(N:Nat, P:Nat))   = P:Nat .
+    eq getError    (@vl(E:Error))        = E:Error .
+    eq getNothing  (@vl(N:Nothing))      = N:Nothing .
+
+    eq getValues (@ls(VS:Values))      = VS:Values .
+    eq getValues (@tp(VS:Values))      = VS:Values .
+    eq getValues (@vl(@ls(VS:Values))) = VS:Values .
+    eq getValues (@vl(@tp(VS:Values))) = VS:Values .
+    eq getValues (V:Value)             = V:Value   [owise] .
+
+    eq getSymbol (@cl(Q:Qid, V:Value)) = Q:Qid .
+    eq getValue  (@cl(Q:Qid, V:Value)) = V:Value .
+
+    eq getFuncPath (@fi(Q:Qids, T:FunctionType, C:Closures)) = Q:Qids .
+    eq getFuncType (@fi(Q:Qids, T:FunctionType, C:Closures)) = T:FunctionType .
+    eq getClosures (@fi(Q:Qids, T:FunctionType, C:Closures)) = C:Closures .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isSymbol   : Value -> Bool .
+    op isBoolean  : Value -> Bool .
+    op isNatural  : Value -> Bool .
+    op isInteger  : Value -> Bool .
+    op isFloat    : Value -> Bool .
+    op isNumber   : Value -> Bool .
+    op isString   : Value -> Bool .
+    op isList     : Value -> Bool .
+    op isTuple    : Value -> Bool .
+    op isPointer  : Value -> Bool .
+    op isFunction : Value -> Bool .
+    op isPID      : Value -> Bool .
+    op isError    : Value -> Bool .
+    op isNothing  : Value -> Bool .
+
+    op isZero    : Value        -> Bool .
+    op isNotZero : Value        -> Bool .
+    op isInvalid : FunctionInfo -> Bool .
+
+    eq isSymbol   (@vl(Q:Qid))          = true  .
+    eq isSymbol   (V:Value)             = false [owise] .
+    eq isBoolean  (@vl('true))          = true  .
+    eq isBoolean  (@vl('false))         = true  .
+    eq isBoolean  (@vl(B:Bool))         = true  .
+    eq isBoolean  (V:Value)             = false [owise] .
+    eq isNatural  (@vl(N:Nat))          = true  .
+    eq isNatural  (V:Value)             = false [owise] .
+    eq isInteger  (@vl(I:Int))          = true  .
+    eq isInteger  (V:Value)             = false [owise] .
+    eq isFloat    (@vl(F:Float))        = true  .
+    eq isFloat    (V:Value)             = false [owise] .
+    eq isNumber   (@vl(N:Nat))          = true  .
+    eq isNumber   (@vl(I:Int))          = true  .
+    eq isNumber   (@vl(F:Float))        = true  .
+    eq isNumber   (V:Value)             = false [owise] .
+    eq isString   (@vl(S:String))       = true  .
+    eq isString   (V:Value)             = false [owise] .
+    eq isList     (@vl(L:ListValue))    = true  .
+    eq isList     (V:Value)             = false [owise] .
+    eq isTuple    (@vl(T:TupleValue))   = true  .
+    eq isTuple    (V:Value)             = false [owise] .
+    eq isPointer  (@vl(R:References))   = true  .
+    eq isPointer  (V:Value)             = false [owise] .
+    eq isFunction (@vl(F:FunctionInfo)) = true  .
+    eq isFunction (V:Value)             = false [owise] .
+    eq isPID      (@vl(N:Nat, P:Nat))   = true  .
+    eq isPID      (V:Value)             = false [owise] .
+    eq isError    (@vl(E:Error))        = true  .
+    eq isError    (V:Value)             = false [owise] .
+    eq isNothing  (@vl(N:Nothing))      = true  .
+    eq isNothing  (V:Value)             = false [owise] .
+
+    eq isZero (@vl(N:Nat))   = N:Nat == 0 .
+    eq isZero (@vl(I:Int))   = I:Int == 0 .
+    eq isZero (@vl(F:Float)) = F:Float == 0.0 .
+    eq isZero (V:Value)      = false [owise] .
+
+    eq isNotZero (@vl(N:Nat))   = N:Nat =/= 0 .
+    eq isNotZero (@vl(I:Int))   = I:Int =/= 0 .
+    eq isNotZero (@vl(F:Float)) = F:Float =/= 0.0 .
+    eq isNotZero (V:Value)      = false [owise] .
+
+    eq isInvalid (F:FunctionInfo) = getFuncType(F:FunctionInfo) == @InvalidFunction .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Conversion                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op toSymbol   : Value      -> Qid .
+    op toBoolean  : Value      -> Bool .
+    op toNatural  : Value      -> Nat .
+    op $toNatural : String     -> Nat .
+    op toInteger  : Value      -> Int .
+    op $toInteger : String     -> Int .
+    op toFloat    : Value      -> Float .
+    op $toFloat   : String     -> Float .
+    op toString   : Value      -> String .
+    op toString   : Nat Value  -> String .
+    op $toString  : Values     -> String .
+    op toList     : Value      -> ListValue .
+    op toTuple    : Value      -> TupleValue .
+    op $toValues  : Nat String -> Values .
+    op toPointer  : Value      -> References .
+    op toError    : Value      -> Error .
+    op toNothing  : Value      -> Nothing .
+
+    eq toSymbol (@vl(Q:Qid))          = Q:Qid .
+    eq toSymbol (@vl(true))           = 'true .
+    eq toSymbol (@vl(false))          = 'false .
+    eq toSymbol (@vl(N:Nat))          = qid(string(N:Nat, 10)) .
+    eq toSymbol (@vl(I:Int))          = qid(string(I:Int, 10)) .
+    eq toSymbol (@vl(F:Float))        = qid(string(F:Float)) .
+    eq toSymbol (@vl(S:String))       = qid(S:String) .
+    eq toSymbol (@vl(@ls(VS:Values))) = qid("[" + $toString(VS:Values) + "]") .
+    eq toSymbol (@vl(@tp(VS:Values))) = qid("{" + $toString(VS:Values) + "}") .
+    eq toSymbol (V:Value)             = 'nothing .
+
+    eq toBoolean (@vl('true))   = true .
+    eq toBoolean (@vl('false))  = false .
+    eq toBoolean (@vl(B:Bool))  = B:Bool .
+    eq toBoolean (@vl(N:Nat))   = N:Nat =/= 0 .
+    eq toBoolean (@vl(I:Int))   = I:Int =/= 0 .
+    eq toBoolean (@vl(F:Float)) = F:Float =/= 0.0 .
+    eq toBoolean (@vl("true"))  = true .
+    eq toBoolean (@vl("false")) = false .
+    eq toBoolean (V:Value)      = false [owise] .
+
+    eq toNatural (@vl(Q:Qid))    = $toNatural(string(Q:Qid)) .
+    eq toNatural (@vl(true))     = 1 .
+    eq toNatural (@vl(false))    = 0 .
+    eq toNatural (@vl(N:Nat))    = N:Nat .
+    eq toNatural (@vl(I:Int))    = $toNatural(string(I:Int, 10)) .
+    eq toNatural (@vl(F:Float))  = trunc(rat(F:Float)) .
+    eq toNatural (@vl(S:String)) = $toNatural(S:String) .
+    eq toNatural (V:Value)       = 0 [owise] .
+
+    ceq $toNatural (S:String) = N:Nat if N:Nat := rat(S:String, 10) .
+    eq  $toNatural (S:String) = 0     [owise] .
+
+    eq toInteger (@vl(Q:Qid))    = $toInteger(string(Q:Qid)) .
+    eq toInteger (@vl(true))     = 1 .
+    eq toInteger (@vl(false))    = 0 .
+    eq toInteger (@vl(N:Nat))    = N:Nat .
+    eq toInteger (@vl(I:Int))    = I:Int .
+    eq toInteger (@vl(F:Float))  = trunc(rat(F:Float)) .
+    eq toInteger (@vl(S:String)) = $toInteger(S:String) .
+    eq toInteger (V:Value)       = 0 [owise] .
+
+    ceq $toInteger (S:String) = I:Int if I:Int := rat(S:String, 10) .
+    eq  $toInteger (S:String) = 0     [owise] .
+
+    eq toFloat (@vl(Q:Qid))    = $toFloat(string(Q:Qid)) .
+    eq toFloat (@vl(true))     = 1.0 .
+    eq toFloat (@vl(false))    = 0.0 .
+    eq toFloat (@vl(N:Nat))    = float(N:Nat) .
+    eq toFloat (@vl(I:Int))    = float(I:Int) .
+    eq toFloat (@vl(F:Float))  = F:Float .
+    eq toFloat (@vl(S:String)) = $toFloat(S:String) .
+    eq toFloat (V:Value)       = 0.0 [owise] .
+
+    ceq $toFloat (S:String) = float(I:Int) if I:Int   := rat(S:String, 10) .
+    ceq $toFloat (S:String) = F:Float      if F:Float := float(S:String) .
+    eq  $toFloat (S:String) = 0.0          [owise] .
+
+    eq toString (@vl(Q:Qid))          = string(Q:Qid) .
+    eq toString (@vl(true))           = "true" .
+    eq toString (@vl(false))          = "false" .
+    eq toString (@vl(N:Nat))          = string(N:Nat, 10) .
+    eq toString (@vl(I:Int))          = string(I:Int, 10) .
+    eq toString (@vl(F:Float))        = string(F:Float) .
+    eq toString (@vl(S:String))       = S:String .
+    eq toString (@vl(@ls(VS:Values))) = "[" + $toString(VS:Values) + "]" .
+    eq toString (@vl(@tp(VS:Values))) = "{" + $toString(VS:Values) + "}" .
+    eq toString (@vl(R:References))   = "<pointer>" .
+    eq toString (@vl(F:FunctionInfo)) = "<function>" .
+    eq toString (@vl(N:Nat, P:Nat))   = "<" + string(N:Nat, 10) + "." + string(P:Nat, 10) + ".0>" .
+    eq toString (@vl(E:Error))        = "<error>" .
+    eq toString (V:Value)             = "" [owise] .
+
+    eq toString (N:Nat, @vl(N:Nat, P:Nat)) = toString(@vl(0, P:Nat)) .
+    eq toString (N:Nat, V:Value)           = toString(V:Value) [owise] .
+
+    ceq $toString (V:Value VS:Values) = if S2 == "" then S1 else S1 + ", " + S2 fi
+                                        if S1 := toString(V:Value)
+                                        /\ S2 := $toString(VS:Values) .
+    eq  $toString (VS:Values)         = "" [owise] .
+
+    eq toList (@vl(S:String))       = @ls($toValues(0, S:String)) .
+    eq toList (@vl(L:ListValue))    = L:ListValue .
+    eq toList (@vl(@tp(VS:Values))) = @ls(VS:Values) .
+    eq toList (V:Value)             = @ls(V:Value) [owise] .
+
+    eq toTuple (@vl(S:String))       = @tp($toValues(0, S:String)) .
+    eq toTuple (@vl(@ls(VS:Values))) = @tp(VS:Values) .
+    eq toTuple (@vl(T:TupleValue))   = T:TupleValue .
+    eq toTuple (V:Value)             = @tp(V:Value) [owise] .
+
+    eq $toValues (N:Nat, S:String) =
+        if N:Nat < length(S:String) then
+            @vl(substr(S:String, N:Nat, 1)) $toValues(s(N:Nat), S:String)
+        else
+            nil
+        fi .
+
+    eq toPointer (@vl(R:References)) = R:References .
+    eq toPointer (V:Value)           = nil [owise] .
+
+    eq toError (@vl(E:Error)) = E:Error .
+    eq toError (V:Value)      = @Error [owise] .
+
+    eq toNothing (V:Value) = nothing .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op getInnerValue   : Value References          -> Value .
+    op getInnerValue   : Values Nat                -> Value .
+    op $getInnerValue  : Values Nat Nat            -> Value .
+    op getInnerValues  : Values Nat Nat            -> Value .
+    op $getInnerValues : Values Nat Nat Nat        -> Values .
+
+    op setInnerValue   : Value References Value           -> Value .
+	op setInnerValue   : Values Nat References Value Bool -> Value .
+	op $setInnerValue  : Values Nat Nat References Value  -> Values .
+	op setInnerValues  : Values Nat Nat References Values -> Value .
+	op $setInnerValues : Values Nat Nat Nat Values        -> Values .
+
+    ceq getInnerValue (V:Value, R:IndexReference RS:References) =
+        (if I:Nat == J:Nat then
+            getInnerValue(getInnerValue(VS:Values, I:Nat), RS:References)
+        else if I:Nat <= J:Nat then
+            getInnerValue(getInnerValues(VS:Values, I:Nat, J:Nat), RS:References)
+        else
+            getInnerValue(getInnerValues(VS:Values, J:Nat, I:Nat), RS:References)
+        fi fi)
+        if (isList(V:Value) or isTuple(V:Value))
+        /\ VS:Values := getValues(V:Value)
+        /\ I:Nat     := getPosition(R:IndexReference)
+        /\ S:Int     := getSize(R:IndexReference)
+        /\ J:Nat     := abs(I:Nat + (S:Int - 1)) .
+    eq getInnerValue (V:Value, RS:References) =
+        if RS:References == nil then
+            V:Value
+        else
+            makeGetValueError
+        fi [owise] .
+
+    eq getInnerValue (VS:Values, I:Nat) =
+        $getInnerValue(VS:Values, 0, I:Nat) .
+
+    eq $getInnerValue (V:Value VS:Values, K:Nat, I:Nat) =
+        if K:Nat == I:Nat then
+            V:Value
+        else
+            $getInnerValue(VS:Values, s(K:Nat), I:Nat)
+        fi .
+    eq $getInnerValue (VS:Values, K:Nat, I:Nat) =
+        makeGetValueError [owise] .
+
+    eq getInnerValues (VS:Values, I:Nat, J:Nat) =
+        makeValue(makeListValue($getInnerValues(VS:Values, 0, I:Nat, J:Nat))) .
+
+    eq $getInnerValues (V:Value VS:Values, K:Nat, I:Nat, J:Nat) =
+        if (I:Nat <= K:Nat) and (K:Nat <= J:Nat) then
+            if K:Nat == J:Nat then
+                V:Value
+            else
+                V:Value $getInnerValues(VS:Values, s(K:Nat), I:Nat, J:Nat)
+            fi
+        else
+            V:Value $getInnerValues(VS:Values, s(K:Nat), I:Nat, J:Nat)
+        fi .
+    eq $getInnerValues (VS:Values, K:Nat, I:Nat, J:Nat) =
+        nil [owise] .
+
+    ceq setInnerValue (V1:Value, R:IndexReference RS:References, V2:Value) =
+        (if I:Nat == J:Nat then
+            setInnerValue(VS:Values, I:Nat, RS:References, V2:Value, true)
+        else if I:Nat <= J:Nat then
+            setInnerValues(VS:Values, I:Nat, J:Nat, RS:References, getValues(V2:Value))
+        else
+            setInnerValues(VS:Values, I:Nat, J:Nat, RS:References, getValues(V2:Value))
+        fi fi)
+        if isList(V1:Value)
+        /\ VS:Values := getValues(V1:Value)
+        /\ I:Nat     := getPosition(R:IndexReference)
+        /\ S:Int     := getSize(R:IndexReference)
+        /\ J:Nat     := abs(I:Nat + (S:Int - 1)) .
+    ceq setInnerValue (V1:Value, R:IndexReference RS:References, V2:Value) =
+        (if I:Nat == J:Nat then
+            setInnerValue(VS:Values, I:Nat, RS:References, V2:Value, false)
+        else
+            makeSetValueError
+        fi)
+        if isTuple(V1:Value)
+        /\ VS:Values := getValues(V1:Value)
+        /\ I:Nat     := getPosition(R:IndexReference)
+        /\ S:Int     := getSize(R:IndexReference)
+        /\ J:Nat     := abs(I:Nat + (S:Int - 1)) .
+    eq setInnerValue (V1:Value, RS:References, V2:Value) =
+        if RS:References == nil then
+            V2:Value
+        else
+            makeSetValueError
+        fi [owise] .
+
+    eq setInnerValue (VS:Values, I:Nat, RS:References, V2:Value, true) =
+        makeValue(makeListValue($setInnerValue(VS:Values, 0, I:Nat, RS:References, V2:Value))) .
+    eq setInnerValue (VS:Values, I:Nat, RS:References, V2:Value, false) =
+        makeValue(makeTupleValue($setInnerValue(VS:Values, 0, I:Nat, RS:References, V2:Value))) .
+
+    eq $setInnerValue (V1:Value VS:Values, K:Nat, I:Nat, RS:References, V2:Value) =
+        if K:Nat == I:Nat then
+            setInnerValue(V1:Value, RS:References, V2:Value) VS:Values
+        else
+            V1:Value $setInnerValue(VS:Values, s(K:Nat), I:Nat, RS:References, V2:Value)
+        fi .
+    eq $setInnerValue (VS:Values, K:Nat, I:Nat, RS:References, V2:Value) =
+        makeSetValueError [owise] .
+
+    eq setInnerValues (VS:Values, I:Nat, J:Nat, RS:References, V2:Values) =
+        if RS:References == nil then
+            makeValue(makeListValue($setInnerValues(VS:Values, 0, I:Nat, J:Nat, V2:Values)))
+        else
+            makeSetValueError
+        fi .
+
+    eq $setInnerValues (V1:Value VS:Values, K:Nat, I:Nat, J:Nat, V2:Values) =
+        if (I:Nat <= K:Nat) and (K:Nat <= J:Nat) then
+            if K:Nat == J:Nat then
+                V2:Values VS:Values
+            else
+                $setInnerValues(VS:Values, s(K:Nat), I:Nat, J:Nat, V2:Values)
+            fi
+        else
+            V1:Value $setInnerValues(VS:Values, s(K:Nat), I:Nat, J:Nat, V2:Values)
+        fi .
+    eq $setInnerValues (VS:Values, K:Nat, I:Nat, J:Nat, V2:Values) =
+        V2:Values [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Debug                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op print : Value        -> Bool .
+    op print : String Value -> Bool .
+
+    eq print (@vl(Q:Qid))          = true  [print Q:Qid] .
+    eq print (@vl(B:Bool))         = true  [print B:Bool] .
+    eq print (@vl(N:Nat))          = true  [print N:Nat] .
+    eq print (@vl(I:Int))          = true  [print I:Int] .
+    eq print (@vl(F:Float))        = true  [print F:Float] .
+    eq print (@vl(S:String))       = true  [print S:String] .
+    eq print (@vl(L:ListValue))    = true  [print L:ListValue] .
+    eq print (@vl(T:TupleValue))   = true  [print T:TupleValue] .
+    eq print (@vl(R:References))   = true  [print R:References] .
+    eq print (@vl(F:FunctionInfo)) = true  [print F:FunctionInfo] .
+    eq print (@vl(N:Nat, P:Nat))   = true  [print "{" N:Nat ", " P:Nat "}"] .
+    eq print (@vl(E:Error))        = true  [print E:Error] .
+    eq print (@vl(N:Nothing))      = true  [print N:Nothing] .
+    eq print (V:Value)             = false [owise] .
+
+    eq print (MSG:String, @vl(Q:Qid))          = true  [print MSG:String " " Q:Qid] .
+    eq print (MSG:String, @vl(B:Bool))         = true  [print MSG:String " " B:Bool] .
+    eq print (MSG:String, @vl(N:Nat))          = true  [print MSG:String " " N:Nat] .
+    eq print (MSG:String, @vl(I:Int))          = true  [print MSG:String " " I:Int] .
+    eq print (MSG:String, @vl(F:Float))        = true  [print MSG:String " " F:Float] .
+    eq print (MSG:String, @vl(S:String))       = true  [print MSG:String " " S:String] .
+    eq print (MSG:String, @vl(L:ListValue))    = true  [print MSG:String " " L:ListValue] .
+    eq print (MSG:String, @vl(T:TupleValue))   = true  [print MSG:String " " T:TupleValue] .
+    eq print (MSG:String, @vl(R:References))   = true  [print MSG:String " " R:References] .
+    eq print (MSG:String, @vl(F:FunctionInfo)) = true  [print MSG:String " " F:FunctionInfo] .
+    eq print (MSG:String, @vl(N:Nat, P:Nat))   = true  [print MSG:String " {" N:Nat ", " P:Nat "}"] .
+    eq print (MSG:String, @vl(E:Error))        = true  [print MSG:String " " E:Error] .
+    eq print (MSG:String, @vl(N:Nothing))      = true  [print MSG:String " " N:Nothing] .
+    eq print (MSG:String, V:Value)             = false [owise] .
+
+endfm)

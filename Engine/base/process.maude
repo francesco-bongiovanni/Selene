@@ -1,0 +1,526 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Process}
+%)
+
+*** |====================================================================================|
+*** | Process                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{omod PROCESS}
+    This object module represents a process inside a node in the machine.
+
+\paragraph{class Process}
+    This class represents a process inside a node.
+    \begin{itemize}
+    \item \textbf{owner:}
+        The node owner.
+    \item \textbf{context:}
+        The execution context.
+    \end{itemize}
+%)
+(omod PROCESS is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr CONTEXT .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ProcessObject .
+
+    subsort ProcessObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class Process | owner       : Oid,
+                    context     : ContextStack,
+                    messages    : Values,
+                    newMsgsFlag : Bool .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : ProcessObject if isProcess(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newEmptyProcess : -> Object .
+
+    op newProcess : NzNat NzNat ContextStack             -> Object .
+    op newProcess : NzNat NzNat ContextStack Values Bool -> Object .
+    op newProcess : Oid Oid ContextStack                 -> Object .
+    op newProcess : Oid Oid ContextStack Values Bool     -> Object .
+
+    eq newEmptyProcess =
+        newProcess('nil, 'nil, nil, nil, false) .
+
+    eq newProcess (ID:NzNat, OW:NzNat, CS:ContextStack) =
+        newProcess(makeID(ID:NzNat), makeID(OW:NzNat), CS:ContextStack, nil, false) .
+
+    eq newProcess (ID:NzNat, OW:NzNat, CS:ContextStack, MS:Values, NM:Bool) =
+        newProcess(makeID(ID:NzNat), makeID(OW:NzNat), CS:ContextStack, MS:Values, NM:Bool) .
+
+    eq newProcess (O:Oid, OW:Oid, CS:ContextStack) =
+        newProcess(O:Oid, OW:Oid, CS:ContextStack, nil, false) .
+
+    eq newProcess (O:Oid, OW:Oid, CS:ContextStack, MS:Values, NM:Bool) =
+        < O:Oid : Process | owner       : OW:Oid,
+                            context     : CS:ContextStack,
+		                    messages    : MS:Values,
+		                    newMsgsFlag : NM:Bool > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid          : ProcessObject -> Oid .
+    op getOwner        : ProcessObject -> Oid .
+    op getContextStack : ProcessObject -> ContextStack .
+    op getMessages     : ProcessObject -> Values .
+    op getNewMsgsFlag  : ProcessObject -> Bool .
+
+    op setOid          : ProcessObject Oid          -> ProcessObject .
+    op setOwner        : ProcessObject Oid          -> ProcessObject .
+    op setContextStack : ProcessObject ContextStack -> ProcessObject .
+    op setMessages     : ProcessObject Values       -> ProcessObject .
+    op setNewMsgsFlag  : ProcessObject Bool         -> ProcessObject .
+
+    op getPid       : ProcessObject -> Pid .
+    op getNodeID    : ProcessObject -> Nat .
+    op getProcessID : ProcessObject -> Nat .
+
+    eq getOid (< O:Oid : Process | owner       : OW:Oid,
+                                   context     : CS:ContextStack,
+                                   messages    : MS:Values,
+                                   newMsgsFlag : NM:Bool >) = O:Oid .
+    eq getOwner (< O:Oid : Process | owner       : OW:Oid,
+                                     context     : CS:ContextStack,
+                                     messages    : MS:Values,
+                                     newMsgsFlag : NM:Bool >) = OW:Oid .
+    eq getContextStack (< O:Oid : Process | owner       : OW:Oid,
+                                            context     : CS:ContextStack,
+                                            messages    : MS:Values,
+                                            newMsgsFlag : NM:Bool >) = CS:ContextStack .
+    eq getMessages (< O:Oid : Process | owner       : OW:Oid,
+                                        context     : CS:ContextStack,
+                                        messages    : MS:Values,
+                                        newMsgsFlag : NM:Bool >) = MS:Values .
+    eq getNewMsgsFlag (< O:Oid : Process | owner       : OW:Oid,
+                                           context     : CS:ContextStack,
+                                           messages    : MS:Values,
+                                           newMsgsFlag : NM:Bool >) = NM:Bool .
+
+    eq setOid (< O:Oid : Process | owner       : OW:Oid,
+                                   context     : CS:ContextStack,
+                                   messages    : MS:Values,
+                                   newMsgsFlag : NM:Bool >, O2:Oid) =
+        < O2:Oid : Process | owner       : OW:Oid,
+                             context     : CS:ContextStack,
+                             messages    : MS:Values,
+                             newMsgsFlag : NM:Bool > .
+    eq setOwner (< O:Oid : Process | owner       : OW:Oid,
+                                     context     : CS:ContextStack,
+		                             messages    : MS:Values,
+		                             newMsgsFlag : NM:Bool >, OW2:Oid) =
+        < O:Oid : Process | owner       : OW2:Oid,
+                            context     : CS:ContextStack,
+                            messages    : MS:Values,
+                            newMsgsFlag : NM:Bool > .
+    eq setContextStack (< O:Oid : Process | owner       : OW:Oid,
+                                            context     : CS:ContextStack,
+				                            messages    : MS:Values,
+				                            newMsgsFlag : NM:Bool >, CS2:ContextStack) =
+        < O:Oid : Process | owner       : OW:Oid,
+                            context     : CS2:ContextStack,
+                            messages    : MS:Values,
+                            newMsgsFlag : NM:Bool > .
+    eq setMessages (< O:Oid : Process | owner       : OW:Oid,
+                                        context     : CS:ContextStack,
+                                        messages    : MS:Values,
+                                        newMsgsFlag : NM:Bool >, MS2:Values) =
+        < O:Oid : Process | owner       : OW:Oid,
+                            context     : CS:ContextStack,
+                            messages    : MS2:Values,
+                            newMsgsFlag : NM:Bool > .
+    eq setNewMsgsFlag (< O:Oid : Process | owner       : OW:Oid,
+                                           context     : CS:ContextStack,
+                                           messages    : MS:Values,
+                                           newMsgsFlag : NM:Bool >, NM2:Bool) =
+        < O:Oid : Process | owner       : OW:Oid,
+                            context     : CS:ContextStack,
+                            messages    : MS:Values,
+                            newMsgsFlag : NM2:Bool > .
+
+    eq getPid (PO:ProcessObject) =
+        makePid(getNodeID(PO:ProcessObject), getProcessID(PO:ProcessObject)) .
+
+    eq getNodeID (PO:ProcessObject) =
+        getID(getOwner(PO:ProcessObject)) .
+
+    eq getProcessID (PO:ProcessObject) =
+        getID(getOid(PO:ProcessObject)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isProcess : Object -> Bool .
+
+    op hasCell            : ProcessObject Nat           -> Bool .
+    op hasState           : ProcessObject ExpState      -> Bool .
+    op hasTopAnError      : ProcessObject               -> Bool .
+    op hasEndedProcess    : ProcessObject               -> Bool .
+    op hasEndedContext    : ProcessObject               -> Bool .
+    op hasEndedAmbit      : ProcessObject               -> Bool .
+    op hasEndedExpression : ProcessObject               -> Bool .
+    op hasEndedCall       : ProcessObject               -> Bool .
+    op hasAnyExpression   : ProcessObject               -> Bool .
+    op sameProcess        : ProcessObject Nat Nat       -> Bool .
+    op anyExecutionChange : ProcessObject ProcessObject -> Bool .
+
+    eq isProcess (< O:Oid : Process | owner       : OW:Oid,
+                                      context     : CS:ContextStack,
+		                              messages    : MS:Values,
+		                              newMsgsFlag : NM2:Bool >) = true .
+    eq isProcess (OBJ) = false [owise] .
+
+    eq hasCell (PO:ProcessObject, N:Nat) =
+        hasCell(getContextStack(PO:ProcessObject), N:Nat) .
+
+    eq hasState (PO:ProcessObject, S:ExpState) =
+        hasState(getContextStack(PO:ProcessObject), S:ExpState) .
+
+    eq hasTopAnError (PO:ProcessObject) =
+        hasTopAnError(getContextStack(PO:ProcessObject)) .
+
+    eq hasEndedProcess (PO:ProcessObject) =
+        hasEndedProcess(getContextStack(PO:ProcessObject)) .
+
+    eq hasEndedContext (PO:ProcessObject) =
+        hasEndedContext(getContextStack(PO:ProcessObject)) .
+
+    ceq hasEndedAmbit (PO:ProcessObject) =
+        hasEndedAmbit(CS:ContextStack)
+        and (not hasEndedContext(CS:ContextStack))
+        and (not hasEndedProcess(CS:ContextStack))
+        if CS:ContextStack := getContextStack(PO:ProcessObject) .
+
+    eq hasEndedExpression (PO:ProcessObject) =
+        hasEndedExpression(getContextStack(PO:ProcessObject)) .
+
+    eq hasEndedCall (PO:ProcessObject) =
+        hasEndedContext(PO:ProcessObject) and (not hasEndedProcess(PO:ProcessObject)) .
+
+    eq hasAnyExpression (PO:ProcessObject) =
+        hasAnyExpression(getContextStack(PO:ProcessObject)) .
+
+    ceq sameProcess (PO:ProcessObject, N:Nat, P:Nat) =
+        true
+        if N:Nat == getNodeID(PO:ProcessObject)
+        /\ P:Nat == getProcessID(PO:ProcessObject) .
+    eq sameProcess (PO:ProcessObject, N:Nat, P:Nat) =
+        false [owise] .
+
+    ceq anyExecutionChange (P1:ProcessObject, P2:ProcessObject) =
+        (getOid(P1:ProcessObject) == getOid(P2:ProcessObject)) and
+        (getOwner(P1:ProcessObject) == getOwner(P2:ProcessObject)) and
+        ((getMessages(P1:ProcessObject) =/= getMessages(P2:ProcessObject)) or
+         (getNewMsgsFlag(P1:ProcessObject) =/= getNewMsgsFlag(P2:ProcessObject)) or
+         (getFunction(C1:Context) =/= getFunction(C2:Context)) or
+         (getAmbits(C1:Context) =/= getAmbits(C2:Context)) or
+         (getResult(C1:Context) =/= getResult(C2:Context)))
+         if C1:Context := topContext(P1:ProcessObject)
+         /\ C2:Context := topContext(P2:ProcessObject) .
+    eq anyExecutionChange (P1:ProcessObject, P2:ProcessObject) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Stacks                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op pushContext : ProcessObject Context -> ProcessObject .
+    op popContext  : ProcessObject         -> ProcessObject .
+    op topContext  : ProcessObject         -> Context .
+    op pushAmbit   : ProcessObject Ambit   -> ProcessObject .
+    op popAmbit    : ProcessObject         -> ProcessObject .
+    op topAmbit    : ProcessObject         -> Ambit .
+
+    ceq pushContext (PO:ProcessObject, C:Context) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := pushContext(CS1:ContextStack, C:Context) .
+
+    ceq popContext (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := popContext(CS1:ContextStack) .
+
+    eq topContext (PO:ProcessObject) =
+        topContext(getContextStack(PO:ProcessObject)) .
+
+    ceq pushAmbit (PO:ProcessObject, A:Ambit) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := pushAmbit(CS1:ContextStack, A:Ambit) .
+
+    ceq popAmbit (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := popAmbit(CS1:ContextStack) .
+
+    eq topAmbit (PO:ProcessObject) =
+        topAmbit(getContextStack(PO:ProcessObject)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op pushValue  : ProcessObject Value  -> ProcessObject .
+    op pushValues : ProcessObject Values -> ProcessObject .
+    op popValue   : ProcessObject        -> ProcessObject .
+    op topValue   : ProcessObject        -> Value .
+    op nextIndex  : ProcessObject        -> Nat .
+    op topIndex   : ProcessObject        -> Nat .
+    op addIndex   : ProcessObject        -> ProcessObject .
+    op addIndex   : ProcessObject Nat    -> ProcessObject .
+
+    op getRefs  : ProcessObject Qid                  -> References .
+    op getValue : ProcessObject Nat                  -> Value .
+    op getValue : ProcessObject Nat References       -> Value .
+    op getCell  : ProcessObject Nat                  -> MemoryCell .
+    op setCell  : ProcessObject Nat Value            -> ProcessObject .
+    op setCell  : ProcessObject Nat References Value -> ProcessObject .
+    op $setCell : ProcessObject Nat References Value -> ProcessObject .
+
+    op addVariable : ProcessObject Qid References -> ProcessObject .
+    op addVariable : ProcessObject Variable       -> ProcessObject .
+
+    ceq pushValue (PO:ProcessObject, V:Value) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := pushValue(CS1:ContextStack, V:Value) .
+
+    ceq pushValues (PO:ProcessObject, VS:Value) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := pushValues(CS1:ContextStack, VS:Value) .
+
+    ceq popValue (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := popValue(CS1:ContextStack) .
+
+    eq topValue (PO:ProcessObject) =
+        topValue(getContextStack(PO:ProcessObject)) .
+
+    eq nextIndex (PO:ProcessObject) =
+        nextIndex(getContextStack(PO:ProcessObject)) .
+
+    eq topIndex (PO:ProcessObject) =
+        topIndex(getContextStack(PO:ProcessObject)) .
+
+    ceq addIndex (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := addIndex(CS1:ContextStack) .
+
+    ceq addIndex (PO:ProcessObject, N:Nat) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := addIndex(CS1:ContextStack, N:Nat) .
+
+    eq getRefs (PO:ProcessObject, S:Qid) =
+        getRefs(getContextStack(PO:ProcessObject), S:Qid) .
+
+    eq getValue (PO:ProcessObject, N:Nat) =
+        getValue(getContextStack(PO:ProcessObject), N:Nat) .
+
+    ceq getValue (PO:ProcessObject, N:Nat, RS:References) =
+        getInnerValue(V:Value, RS:References)
+        if V:Value := getValue(getContextStack(PO:ProcessObject), N:Nat) .
+
+    eq getCell (PO:ProcessObject, N:Nat) =
+        getCell(getContextStack(PO:ProcessObject), N:Nat) .
+
+    ceq setCell (PO:ProcessObject, N:Nat, V:Value) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := setCell(CS1:ContextStack, N:Nat, V:Value) .
+
+    eq setCell (PO:ProcessObject, N:Nat, RS:References, V:Value) =
+        if RS:References == nil then
+            setCell(PO:ProcessObject, N:Nat, V:Value)
+        else
+            $setCell(PO:ProcessObject, N:Nat, RS:References, V:Value)
+        fi .
+
+    ceq $setCell (PO:ProcessObject, N:Nat, RS:References, V:Value) =
+        setCell(PO:ProcessObject, N:Nat, V2:Value)
+        if V1:Value := getValue(PO:ProcessObject, N:Nat)
+        /\ V2:Value := setInnerValue(V1:Value, RS:References, V:Value) .
+
+    eq addVariable (PO:ProcessObject, S:Qid, RS:References) =
+        addVariable(PO:ProcessObject, makeVariable(S:Qid, RS:References)) .
+
+    ceq addVariable (PO:ProcessObject, V:Variable) =
+        replaceTopAmbit(PO:ProcessObject, A2:Ambit)
+        if A1:Ambit := topAmbit(PO:ProcessObject)
+        /\ A2:Ambit := addVariable(A1:Ambit, V:Variable) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op setTopState         : ProcessObject ExpState   -> ProcessObject .
+    op cleanTopAmbitCode   : ProcessObject            -> ProcessObject .
+    op replaceTopAmbit     : ProcessObject Ambit      -> ProcessObject .
+    op mergeLastAmbits     : ProcessObject            -> ProcessObject .
+    op currentExpression   : ProcessObject            -> Expression .
+    op replaceExpression   : ProcessObject Expression -> ProcessObject .
+    op replaceExpressionBC : ProcessObject Expression -> ProcessObject .
+    op nextExpression      : ProcessObject            -> ProcessObject .
+    op getTopVariables     : ProcessObject            -> Variables .
+    op callReturn          : ProcessObject            -> ProcessObject .
+    op ambitReturn         : ProcessObject Bool       -> ProcessObject .
+    op getFullStack        : ProcessObject            -> MemorySegment .
+    op getLastResult       : ProcessObject            -> Value .
+    op setLastResult       : ProcessObject Value      -> ProcessObject .
+    op addMessage          : ProcessObject Value      -> ProcessObject .
+    op removeMessage       : ProcessObject Value      -> ProcessObject .
+    op $removeMessage      : Values Value             -> Values .
+
+    ceq setTopState (PO:ProcessObject, ES:ExpState) =
+        replaceTopAmbit(PO:ProcessObject, A2:Ambit)
+        if A1:Ambit := topAmbit(PO:ProcessObject)
+        /\ A2:Ambit := setState(A1:Ambit, ES:ExpState) .
+
+    ceq cleanTopAmbitCode (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := cleanTopAmbitCode(CS1:ContextStack) .
+
+    ceq replaceTopAmbit (PO:ProcessObject, A:Ambit) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := replaceTopAmbit(CS1:ContextStack, A:Ambit) .
+
+    ceq mergeLastAmbits (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := mergeLastAmbits(CS1:ContextStack) .
+
+    eq currentExpression (PO:ProcessObject) =
+        currentExpression(getContextStack(PO:ProcessObject)) .
+
+    ceq replaceExpression (PO:ProcessObject, E2:Expression) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := replaceExpression(CS1:ContextStack, E2:Expression) .
+
+    ceq replaceExpressionBC (PO:ProcessObject, E2:Expression) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack CX:Context)
+        if CS1:ContextStack CX:Context := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack            := replaceExpression(CS1:ContextStack, E2:Expression) .
+
+    ceq nextExpression (PO:ProcessObject) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := nextExpression(CS1:ContextStack) .
+
+    ceq getTopVariables (PO:ProcessObject) =
+        getVariables(AS:AmbitStack)
+        if CX:Context    := topContext(PO:ProcessObject)
+        /\ AS:AmbitStack := getAmbits(CX:Context) .
+
+    ceq callReturn (PO:ProcessObject) =
+        if size(CS1:ContextStack) < 2 then
+            setContextStack(PO:ProcessObject, nil)
+        else
+            setContextStack(PO:ProcessObject, CS3:ContextStack)
+        fi
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ RV:Value         := getLastResult(CS1:ContextStack)
+        /\ CS2:ContextStack := popContext(CS1:ContextStack)
+        /\ CS3:ContextStack := setLastResult(CS2:ContextStack, RV:Value) .
+
+    ceq ambitReturn (PO:ProcessObject, MA:Bool) =
+        (if hasState(PO:ProcessObject, @ErrorState) then
+            if hasState(PO2:ProcessObject, @TryState) then
+                setTopState(PO2:ProcessObject, @CatchState)
+            else
+                setTopState(PO2:ProcessObject, @ErrorState)
+            fi
+        else if hasState(PO2:ProcessObject, @LoopCheckState) then
+            PO2:ProcessObject
+        else if topAmbit(PO2:ProcessObject) =/= makeInvalidAmbit then
+            setTopState(PO2:ProcessObject, @AfterAmbitState)
+        else
+            setTopState(PO2:ProcessObject, @NoneState)
+        fi fi fi)
+        if PO2:ProcessObject := (if MA:Bool then mergeLastAmbits(PO:ProcessObject)
+                                 else popAmbit(PO:ProcessObject) fi) .
+
+    eq getFullStack (PO:ProcessObject) =
+        getFullStack(getContextStack(PO:ProcessObject)) .
+
+    eq getLastResult (PO:ProcessObject) =
+        getLastResult(getContextStack(PO:ProcessObject)) .
+
+    ceq setLastResult (PO:ProcessObject, V:Value) =
+        setContextStack(PO:ProcessObject, CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(PO:ProcessObject)
+        /\ CS2:ContextStack := setLastResult(CS1:ContextStack, V:Value) .
+
+    ceq addMessage (PO:ProcessObject, V:Value) =
+        setMessages(PO:ProcessObject, VS:Values V:Value)
+        if VS:Values := getMessages(PO:ProcessObject) .
+
+    ceq removeMessage (PO:ProcessObject, V:Value) =
+        setMessages(PO:ProcessObject, V2:Values)
+        if VS:Values := getMessages(PO:ProcessObject)
+        /\ V2:Values := $removeMessage(VS:Values, V:Value) .
+
+    eq $removeMessage (VX:Value VS:Values, V:Value) =
+        if VX:Value == V:Value then
+            VS:Values
+        else
+            VX:Value $removeMessage(VS:Values, V:Value)
+        fi .
+    eq $removeMessage (VS:Values, V:Value) =
+        VS:Values [owise] .
+
+endom)

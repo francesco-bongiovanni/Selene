@@ -1,0 +1,251 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Node}
+%)
+
+*** |====================================================================================|
+*** | Node                                                                               |
+*** |====================================================================================|
+
+---(%
+\subsection{omod NODE}
+    This object module represents a node in the machine.
+
+\paragraph{class Node}
+    This class represents a node inside a network.
+    \begin{itemize}
+    \item \textbf{heap:}
+        The heap memory of the node.
+    \item \textbf{cout:}
+        The output buffer of the node.
+    \item \textbf{cin:}
+        The input buffer of the node.
+    \item \textbf{info:}
+        The auxiliar data with information.
+    \end{itemize}
+%)
+(omod NODE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr MEMORY .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort NodeObject .
+
+    subsort NodeObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class Node | heap : MemorySegment,
+                 cout : String,
+                 cin  : String,
+                 info : Configuration .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : NodeObject if isNode(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newEmptyNode : -> Object .
+
+    op newNode : NzNat Configuration                             -> Object .
+    op newNode : Oid   Configuration                             -> Object .
+    op newNode : NzNat MemorySegment String String Configuration -> Object .
+    op newNode : Oid   MemorySegment String String Configuration -> Object .
+
+    eq newEmptyNode =
+        newNode('nil, makeMemorySegment, "", "", none) .
+
+    eq newNode (ID:NzNat, IN:Configuration) =
+        newNode(makeID(ID:NzNat), makeMemorySegment, "", "", IN:Configuration) .
+
+    eq newNode (O:Oid, IN:Configuration) =
+        newNode(O:Oid, makeMemorySegment, "", "", IN:Configuration) .
+
+    eq newNode (ID:NzNat, HP:MemorySegment, CO:String, CI:String, IN:Configuration) =
+        newNode(makeID(ID:NzNat), HP:MemorySegment, CO:String, CI:String, IN:Configuration) .
+
+    eq newNode (O:Oid, HP:MemorySegment, CO:String, CI:String, IN:Configuration) =
+        < O:Oid : Node | heap : HP:MemorySegment,
+                         cout : CO:String,
+                         cin  : CI:String,
+                         info : IN:Configuration > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid  : NodeObject -> Oid .
+    op getHeap : NodeObject -> MemorySegment .
+    op getCout : NodeObject -> String .
+    op getCin  : NodeObject -> String .
+    op getInfo : NodeObject -> Configuration .
+
+    op setOid  : NodeObject Oid           -> NodeObject .
+    op setHeap : NodeObject MemorySegment -> NodeObject .
+    op setCout : NodeObject String        -> NodeObject .
+    op setCin  : NodeObject String        -> NodeObject .
+    op setInfo : NodeObject Configuration -> NodeObject .
+
+    op getNodeID : NodeObject -> Nat .
+
+    eq getOid (< O:Oid : Node | heap : HP:MemorySegment,
+                                cout : CO:String,
+                                cin  : CI:String,
+                                info : IN:Configuration >) = O:Oid .
+    eq getHeap (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >) = HP:MemorySegment .
+    eq getCout (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >) = CO:String .
+    eq getCin (< O:Oid : Node | heap : HP:MemorySegment,
+                                cout : CO:String,
+                                cin  : CI:String,
+                                info : IN:Configuration >) = CI:String .
+    eq getInfo (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >) = IN:Configuration .
+
+    eq setOid (< O:Oid : Node | heap : HP:MemorySegment,
+                                cout : CO:String,
+                                cin  : CI:String,
+                                info : IN:Configuration >, O2:Oid) =
+        < O2:Oid : Node | heap : HP:MemorySegment,
+                          cout : CO:String,
+                          cin  : CI:String,
+                          info : IN:Configuration > .
+    eq setHeap (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >, HP2:MemorySegment) =
+        < O:Oid : Node | heap : HP2:MemorySegment,
+                         cout : CO:String,
+                         cin  : CI:String,
+                         info : IN:Configuration > .
+    eq setCout (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >, CO2:String) =
+        < O:Oid : Node | heap : HP:MemorySegment,
+                         cout : CO2:String,
+                         cin  : CI:String,
+                         info : IN:Configuration > .
+    eq setCin (< O:Oid : Node | heap : HP:MemorySegment,
+                                cout : CO:String,
+                                cin  : CI:String,
+                                info : IN:Configuration >, CI2:String) =
+        < O:Oid : Node | heap : HP:MemorySegment,
+                         cout : CO:String,
+                         cin  : CI2:String,
+                         info : IN:Configuration > .
+    eq setInfo (< O:Oid : Node | heap : HP:MemorySegment,
+                                 cout : CO:String,
+                                 cin  : CI:String,
+                                 info : IN:Configuration >, IN2:Configuration) =
+        < O:Oid : Node | heap : HP:MemorySegment,
+                         cout : CO:String,
+                         cin  : CI:String,
+                         info : IN2:Configuration > .
+
+    eq getNodeID (NO:NodeObject) =
+        getID(getOid(NO:NodeObject)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isNode : Object -> Bool .
+
+    op sameNode : NodeObject Nat -> Bool .
+
+    eq isNode (< O:Oid : Node | heap : HP:MemorySegment,
+                                cout : CO:String,
+                                cin  : CI:String,
+                                info : IN:Configuration >) = true .
+    eq isNode (OBJ) = false [owise] .
+
+    ceq sameNode (NO:NodeObject, N:Nat) =
+        true
+        if N:Nat == getNodeID(NO:NodeObject) .
+    eq sameNode (NO:NodeObject, N:Nat) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op getValue : NodeObject Nat                  -> Value .
+    op getValue : NodeObject Nat References       -> Value .
+    op getCell  : NodeObject Nat                  -> MemoryCell .
+    op setCell  : NodeObject Nat Value            -> NodeObject .
+    op setCell  : NodeObject Nat References Value -> NodeObject .
+    op $setCell : NodeObject Nat References Value -> NodeObject .
+
+    eq getValue (NO:NodeObject, N:Nat) =
+        getValue(getCell(NO:NodeObject, N:Nat)) .
+
+    ceq getValue (NO:NodeObject, N:Nat, RS:References) =
+        getInnerValue(V:Value, RS:References)
+        if V:Value := getValue(NO:NodeObject, N:Nat) .
+
+    eq getCell (NO:NodeObject, N:Nat) =
+        getCell(getHeap(NO:NodeObject), N:Nat) .
+
+    ceq setCell (NO:NodeObject, N:Nat, V:Value) =
+        setHeap(NO:NodeObject, MS2:MemorySegment)
+        if MS1:MemorySegment := getHeap(NO:NodeObject)
+        /\ MS2:MemorySegment := setCell(MS1:MemorySegment, N:Nat, V:Value) .
+
+    eq setCell (NO:NodeObject, N:Nat, RS:References, V:Value) =
+        if RS:References == nil then
+            setCell(NO:NodeObject, N:Nat, V:Value)
+        else
+            $setCell(NO:NodeObject, N:Nat, RS:References, V:Value)
+        fi .
+
+    ceq $setCell (NO:NodeObject, N:Nat, RS:References, V:Value) =
+        setCell(NO:NodeObject, N:Nat, V2:Value)
+        if V1:Value := getValue(NO:NodeObject, N:Nat)
+        /\ V2:Value := setInnerValue(V1:Value, RS:References, V:Value) .
+
+endom)

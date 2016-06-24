@@ -1,0 +1,185 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Information Data}
+%)
+
+*** |====================================================================================|
+*** | Parser                                                                             |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod INFODATA}
+    This object module represents data used inside the objects of the machine in erlang.
+%)
+(omod INFODATA is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr MACHINE .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ProcessAliasObject .
+
+    subsort ProcessAliasObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class ProcessAlias | node    : Nat,
+                         process : Nat .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : ProcessAliasObject if isProcessAlias(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newEmptyProcessAlias : -> Object .
+
+    op newProcessAlias : Qid Nat Nat -> Object .
+
+    eq newEmptyProcessAlias =
+        newProcessAlias('nil, 0, 0) .
+
+    eq newProcessAlias (A:Qid, N:Nat, P:Nat) =
+        < A:Qid : ProcessAlias | node    : N:Nat,
+                                 process : P:Nat > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getName    : ProcessAliasObject -> Qid .
+    op getNode    : ProcessAliasObject -> Nat .
+    op getProcess : ProcessAliasObject -> Nat .
+
+    eq getName    (< A:Qid : ProcessAlias | node    : N:Nat,
+                                            process : P:Nat >) = A:Qid .
+    eq getNode    (< A:Qid : ProcessAlias | node    : N:Nat,
+                                            process : P:Nat >) = N:Nat .
+    eq getProcess (< A:Qid : ProcessAlias | node    : N:Nat,
+                                            process : P:Nat >) = P:Nat .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isProcessAlias       : Object                -> Bool .
+    op containsProcessAlias : Qid Configuration     -> Bool .
+    op containsProcessAlias : Nat Nat Configuration -> Bool .
+
+    eq isProcessAlias (< A:Qid : ProcessAlias | node    : N:Nat,
+                                                process : P:Nat >) = true .
+    eq isProcessAlias (OBJ) = false [owise] .
+
+    ceq containsProcessAlias (A:Qid, PAO:ProcessAliasObject CFG:Configuration) =
+        true
+        if A:Qid == getName(PAO:ProcessAliasObject) .
+    eq containsProcessAlias (A:Qid, CFG:Configuration) =
+        false [owise] .
+
+    ceq containsProcessAlias (N:Nat, P:Nat, PAO:ProcessAliasObject CFG:Configuration) =
+        true
+        if N:Nat == getNode(PAO:ProcessAliasObject)
+        /\ P:Nat == getProcess(PAO:ProcessAliasObject) .
+    eq containsProcessAlias (N:Nat, P:Nat, CFG:Configuration) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op findProcessAlias   : ExecState Value          -> Value .
+    op findProcessAlias   : ExecState Qid            -> Value .
+    op findProcessAlias   : Configuration Qid Nat    -> Value .
+    op removeProcessAlias : NodeObject ProcessObject -> NodeObject .
+    op removeProcessAlias : NodeObject Nat Nat       -> NodeObject .
+    op removeProcessAlias : Configuration Nat Nat    -> Configuration .
+    op getProcessAlias    : NodeObject Qid           -> ProcessAliasObject .
+    op getProcessAlias    : Configuration Qid        -> ProcessAliasObject .
+
+    eq findProcessAlias (ZX:ExecState, V:Value) =
+        if isPID(V:Value) then
+            V:Value
+        else if isSymbol(V:Value) then
+            findProcessAlias(ZX:ExecState, getSymbol(V:Value))
+        else
+            makeOperationError
+        fi fi .
+
+    eq findProcessAlias (ZX:ExecState, A:Qid) =
+        findProcessAlias(getWorld(ZX:ExecState), A:Qid, getNode(ZX:ExecState)) .
+
+    ceq findProcessAlias (NO:NodeObject W:Configuration, A:Qid, N:Nat) =
+        if PAO:ProcessAliasObject == newEmptyProcessAlias then
+            makeOperationError
+        else
+            makeValue(
+                getNode(PAO:ProcessAliasObject),
+                getProcess(PAO:ProcessAliasObject)
+            )
+        fi
+        if sameNode(NO:NodeObject, N:Nat)
+        /\ PAO:ProcessAliasObject := getProcessAlias(NO:NodeObject, A:Qid) .
+    eq findProcessAlias (W:Configuration, A:Qid, N:Nat) =
+        makeOperationError [owise] .
+
+    ceq removeProcessAlias (NO:NodeObject, PO:ProcessObject) =
+        removeProcessAlias(NO:NodeObject, N:Nat, P:Nat)
+        if N:Nat := getNodeID(PO:ProcessObject)
+        /\ P:Nat := getProcessID(PO:ProcessObject) .
+
+    ceq removeProcessAlias (NO:NodeObject, N:Nat, P:Nat) =
+        setInfo(NO:NodeObject, C2:Configuration)
+        if C1:Configuration := getInfo(NO:NodeObject)
+        /\ C2:Configuration := removeProcessAlias(C1:Configuration, N:Nat, P:Nat) .
+
+    ceq removeProcessAlias (PAO:ProcessAliasObject CFG:Configuration, N:Nat, P:Nat) =
+        CFG:Configuration
+        if N:Nat == getNode(PAO:ProcessAliasObject)
+        /\ P:Nat == getProcess(PAO:ProcessAliasObject) .
+    eq removeProcessAlias (CFG:Configuration, N:Nat, P:Nat) =
+        CFG:Configuration [owise] .
+
+    eq getProcessAlias (NO:NodeObject, A:Qid) =
+        getProcessAlias(getInfo(NO:NodeObject), A:Qid) .
+
+    ceq getProcessAlias (PAO:ProcessAliasObject CFG:Configuration, A:Qid) =
+        PAO:ProcessAliasObject
+        if A:Qid == getName(PAO:ProcessAliasObject) .
+    eq getProcessAlias (CFG:Configuration, A:Qid) =
+        newEmptyProcessAlias [owise] .
+
+endom)

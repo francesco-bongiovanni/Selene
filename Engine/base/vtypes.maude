@@ -1,0 +1,140 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{View Types}
+%)
+
+*** |====================================================================================|
+*** | View Types                                                                         |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod VIEW-TYPES}
+    This functional module is a collection of view types sorts to be used inside
+    standard collections.
+%)
+(fmod VIEW-TYPES is
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort Nothing Reference Variable Closure Value MemoryCell Ambit Context
+         InputFile SourceFile SourceLine Expression .
+
+endfm)
+
+*** |====================================================================================|
+*** | Views                                                                              |
+*** |====================================================================================|
+
+---(%
+\subsection{view Nothing}
+    This view allows to the sort Nothing to be used inside standard collections.
+%)
+(view Nothing from TRIV to VIEW-TYPES is
+    sort Elt to Nothing .
+endv)
+
+---(%
+\subsection{view Reference}
+    This view allows to the sort Reference to be used inside standard collections.
+%)
+(view Reference from TRIV to VIEW-TYPES is
+    sort Elt to Reference .
+endv)
+
+---(%
+\subsection{view Variable}
+    This view allows to the sort Variable to be used inside standard collections.
+%)
+(view Variable from TRIV to VIEW-TYPES is
+    sort Elt to Variable .
+endv)
+
+---(%
+\subsection{view Closure}
+    This view allows to the sort Closure to be used inside standard collections.
+%)
+(view Closure from TRIV to VIEW-TYPES is
+    sort Elt to Closure .
+endv)
+
+---(%
+\subsection{view Value}
+    This view allows to the sort Value to be used inside standard collections.
+%)
+(view Value from TRIV to VIEW-TYPES is
+    sort Elt to Value .
+endv)
+
+---(%
+\subsection{view MemoryCell}
+    This view allows to the sort MemoryCell to be used inside standard collections.
+%)
+(view MemoryCell from TRIV to VIEW-TYPES is
+    sort Elt to MemoryCell .
+endv)
+
+---(%
+\subsection{view Ambit}
+    This view allows to the sort Ambit to be used inside standard collections.
+%)
+(view Ambit from TRIV to VIEW-TYPES is
+    sort Elt to Ambit .
+endv)
+
+---(%
+\subsection{view Context}
+    This view allows to the sort Context to be used inside standard collections.
+%)
+(view Context from TRIV to VIEW-TYPES is
+    sort Elt to Context .
+endv)
+
+---(%
+\subsection{view InputFile}
+    This view allows to the sort InputFile to be used inside standard collections.
+%)
+(view InputFile from TRIV to VIEW-TYPES is
+    sort Elt to InputFile .
+endv)
+
+---(%
+\subsection{view SourceFile}
+    This view allows to the sort SourceFile to be used inside standard collections.
+%)
+(view SourceFile from TRIV to VIEW-TYPES is
+    sort Elt to SourceFile .
+endv)
+
+---(%
+\subsection{view SourceLine}
+    This view allows to the sort SourceLine to be used inside standard collections.
+%)
+(view SourceLine from TRIV to VIEW-TYPES is
+    sort Elt to SourceLine .
+endv)
+
+---(%
+\subsection{view Expression}
+    This view allows to the sort Expression to be used inside standard collections.
+%)
+(view Expression from TRIV to VIEW-TYPES is
+    sort Elt to Expression .
+endv)

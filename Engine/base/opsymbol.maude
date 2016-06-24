@@ -1,0 +1,91 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Operator Symbol}
+%)
+
+*** |====================================================================================|
+*** | Expression                                                                         |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod OPSYMBOL}
+    This functional module represents an operator symbol.
+%)
+(fmod OPSYMBOL is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr QID .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort OpSymbol .
+
+    subsort Qid < OpSymbol .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    --- Function operations:
+    op @call : -> OpSymbol [ctor] . --- Function call
+    op @rtrn : -> OpSymbol [ctor] . --- Function return
+
+    --- General operations:
+    op @get  : -> OpSymbol [ctor] . --- Member access
+    op @set  : -> OpSymbol [ctor] . --- Assignment
+    op @snd  : -> OpSymbol [ctor] . --- Send
+
+    --- Arithmetic operations:
+    op @add  : -> OpSymbol [ctor] . --- Addition
+    op @sub  : -> OpSymbol [ctor] . --- Subtraction
+    op @mul  : -> OpSymbol [ctor] . --- Multiplication
+    op @div  : -> OpSymbol [ctor] . --- Division
+    op @idiv : -> OpSymbol [ctor] . --- Integer division
+    op @rem  : -> OpSymbol [ctor] . --- Modulo/Remainder
+
+    --- Relational operations:
+    op @equ  : -> OpSymbol [ctor] . --- Equal to
+    op @nequ : -> OpSymbol [ctor] . --- Not equal to
+    op @lst  : -> OpSymbol [ctor] . --- Less than
+    op @grt  : -> OpSymbol [ctor] . --- Greater than
+    op @lte  : -> OpSymbol [ctor] . --- Less than or equal to
+    op @gte  : -> OpSymbol [ctor] . --- Greater than or equal to
+    op @sequ : -> OpSymbol [ctor] . --- Equal to (strict)
+    op @sneq : -> OpSymbol [ctor] . --- Not equal to (strict)
+
+    --- Logical operations:
+    op @not  : -> OpSymbol [ctor] . --- Logic not
+    op @and  : -> OpSymbol [ctor] . --- Logic and
+    op @or   : -> OpSymbol [ctor] . --- Logic or
+    op @xor  : -> OpSymbol [ctor] . --- Logic xor
+
+    --- Bitwise operations:
+    op @bnot : -> OpSymbol [ctor] . --- Bitwise not
+    op @band : -> OpSymbol [ctor] . --- Bitwise and
+    op @bor  : -> OpSymbol [ctor] . --- Bitwise or
+    op @bxor : -> OpSymbol [ctor] . --- Bitwise xor
+    op @shl  : -> OpSymbol [ctor] . --- Shift bits left
+    op @shr  : -> OpSymbol [ctor] . --- Shift bits right
+
+endfm)

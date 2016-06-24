@@ -1,0 +1,500 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Execution}
+%)
+
+*** |====================================================================================|
+*** | Context                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod EXECUTION}
+    This functional module represents the execution of expressions inside a code.
+
+\paragraph{ExecState}
+    This operator represents the current state when a function is called.
+    \begin{itemize}
+    \item \textbf{world:}
+        The world with the machine where the function is called.
+    \item \textbf{contextStack:}
+        The current context stack where the function is called.
+    \item \textbf{node:}
+        The node where the function is called.
+    \item \textbf{process:}
+        The process where the function is called.
+    \end{itemize}
+%)
+(fmod EXECUTION is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr NODE .
+    pr PROCESS .
+    pr TEMPORAL .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ExecState .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @zx : Configuration Nat Nat Qids Value -> ExecState [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make: ExecState                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op makeExecState :                                  -> ExecState .
+    op makeExecState : Configuration                    -> ExecState .
+    op makeExecState : Configuration Nat Nat            -> ExecState .
+    op makeExecState : ProcessObject Configuration      -> ExecState .
+    op makeExecState : Qids                             -> ExecState .
+    op makeExecState : Configuration Qids               -> ExecState .
+    op makeExecState : Configuration Nat Nat Qids       -> ExecState .
+    op makeExecState : ProcessObject Configuration Qids -> ExecState .
+
+    eq makeExecState =
+        @zx(none, 0, 0, nil, makeValue) .
+
+    eq makeExecState (W:Configuration) =
+        @zx(W:Configuration, 0, 0, nil, makeValue) .
+
+    eq makeExecState (W:Configuration, N:Nat, P:Nat) =
+        @zx(W:Configuration, N:Nat, P:Nat, nil, makeValue) .
+
+    ceq makeExecState (PO:ProcessObject, W:Configuration) =
+        @zx(PO:ProcessObject W:Configuration, N:Nat, P:Nat, nil, makeValue)
+        if N:Nat := getNodeID(PO:ProcessObject)
+        /\ P:Nat := getProcessID(PO:ProcessObject) .
+
+    eq makeExecState (F:Qids) =
+        @zx(none, 0, 0, F:Qids, makeValue) .
+
+    eq makeExecState (W:Configuration, F:Qids) =
+        @zx(W:Configuration, 0, 0, F:Qids, makeValue) .
+
+    eq makeExecState (W:Configuration, N:Nat, P:Nat, F:Qids) =
+        @zx(W:Configuration, N:Nat, P:Nat, F:Qids, makeValue) .
+
+    ceq makeExecState (PO:ProcessObject, W:Configuration, F:Qids) =
+        @zx(PO:ProcessObject W:Configuration, N:Nat, P:Nat, F:Qids, makeValue)
+        if N:Nat := getNodeID(PO:ProcessObject)
+        /\ P:Nat := getProcessID(PO:ProcessObject) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: ExecState                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op getWorld      : ExecState -> Configuration .
+    op getNode       : ExecState -> Nat .
+    op getProcess    : ExecState -> Nat .
+    op getFunction   : ExecState -> Qids .
+    op getExecResult : ExecState -> Value .
+
+    op setWorld      : ExecState Configuration -> ExecState .
+    op setNode       : ExecState Nat           -> ExecState .
+    op setProcess    : ExecState Nat           -> ExecState .
+    op setFunction   : ExecState Qids          -> ExecState .
+    op setExecResult : ExecState Value         -> ExecState .
+
+    op getPid : ExecState -> Pid .
+
+    eq getWorld      (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = W:Configuration .
+    eq getNode       (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = N:Nat .
+    eq getProcess    (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = P:Nat .
+    eq getFunction   (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = F:Qids .
+    eq getExecResult (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = R:Value .
+
+    eq setWorld      (@zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R:Value), W2:Configuration) =
+                      @zx(W2:Configuration, N:Nat,  P:Nat,  F:Qids,  R:Value) .
+    eq setNode       (@zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R:Value), N2:Nat) =
+                      @zx(W:Configuration,  N2:Nat, P:Nat,  F:Qids,  R:Value) .
+    eq setProcess    (@zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R:Value), P2:Nat) =
+                      @zx(W:Configuration,  N:Nat,  P2:Nat, F:Qids,  R:Value) .
+    eq setFunction   (@zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R:Value), F2:Qids) =
+                      @zx(W:Configuration,  N:Nat,  P:Nat,  F2:Qids, R:Value) .
+    eq setExecResult (@zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R:Value), R2:Value) =
+                      @zx(W:Configuration,  N:Nat,  P:Nat,  F:Qids,  R2:Value) .
+
+    eq getPid (@zx(W:Configuration, N:Nat, P:Nat, F:Qids, R:Value)) = makePid(N:Nat, P:Nat) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check: ExecState                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    op isErrorResult     : ExecState               -> Bool .
+    op isErrorLastResult : ExecState               -> Bool .
+    op hasState          : ExecState ExpState      -> Bool .
+    op hasExecCall       : ExecState ExecState     -> Bool .
+    op sameNode          : NodeObject ExecState    -> Bool .
+    op sameProcess       : ProcessObject ExecState -> Bool .
+
+    eq isErrorResult (ZX:ExecState) =
+        isError(getExecResult(ZX:ExecState)) .
+
+    eq isErrorLastResult (ZX:ExecState) =
+        isError(getLastResult(ZX:ExecState)) .
+
+    eq hasState (ZX:ExecState, S:ExpState) =
+        hasState(getProcessObject(ZX:ExecState), S:ExpState) .
+
+    ceq hasExecCall (ZX:ExecState, Z2:ExecState) =
+        size(CS1:ContextStack) < size(CS2:ContextStack)
+        if CS1:ContextStack := getContextStack(ZX:ExecState)
+        /\ CS2:ContextStack := getContextStack(Z2:ExecState) .
+
+    eq sameNode (NO:NodeObject, ZX:ExecState) =
+        sameNode(NO:NodeObject, getNode(ZX:ExecState)) .
+
+    eq sameProcess (PO:ProcessObject, ZX:ExecState) =
+        sameProcess(PO:ProcessObject, getNode(ZX:ExecState), getProcess(ZX:ExecState)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Objects                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getNodeObject    : ExecState                       -> NodeObject .
+    op getNodeObject    : ExecState Nat                   -> NodeObject .
+    op getProcessObject : ExecState                       -> ProcessObject .
+    op getProcessObject : ExecState Nat Nat               -> ProcessObject .
+    op setNodeObject    : ExecState NodeObject            -> ExecState .
+    op setNodeObject    : ExecState Nat NodeObject        -> ExecState .
+    op setProcessObject : ExecState ProcessObject         -> ExecState .
+    op setProcessObject : ExecState Nat Nat ProcessObject -> ExecState .
+
+    ceq getNodeObject (ZX:ExecState) =
+        NO:NodeObject
+        if NO:NodeObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameNode(NO:NodeObject, ZX:ExecState) .
+    eq getNodeObject (ZX:ExecState) =
+        newEmptyNode [owise] .
+
+    ceq getNodeObject (ZX:ExecState, N:Nat) =
+        NO:NodeObject
+        if NO:NodeObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameNode(NO:NodeObject, N:Nat) .
+    eq getNodeObject (ZX:ExecState, N:Nat) =
+        newEmptyNode [owise] .
+
+    ceq getProcessObject (ZX:ExecState) =
+        PO:ProcessObject
+        if PO:ProcessObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameProcess(PO:ProcessObject, ZX:ExecState) .
+    eq getProcessObject (ZX:ExecState) =
+        newEmptyProcess [owise] .
+
+    ceq getProcessObject (ZX:ExecState, N:Nat, P:Nat) =
+        PO:ProcessObject
+        if PO:ProcessObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameProcess(PO:ProcessObject, N:Nat, P:Nat) .
+    eq getProcessObject (ZX:ExecState, N:Nat, P:Nat) =
+        newEmptyProcess [owise] .
+
+    ceq setNodeObject (ZX:ExecState, NO2:NodeObject) =
+        setWorld(ZX:ExecState, NO2:NodeObject W:Configuration)
+        if NO:NodeObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameNode(NO:NodeObject, ZX:ExecState) .
+    eq setNodeObject (ZX:ExecState, NO2:NodeObject) =
+        ZX:ExecState [owise] .
+
+    ceq setNodeObject (ZX:ExecState, N:Nat, NO2:NodeObject) =
+        setWorld(ZX:ExecState, NO2:NodeObject W:Configuration)
+        if NO:NodeObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameNode(NO:NodeObject, N:Nat) .
+    eq setNodeObject (ZX:ExecState, N:Nat, NO2:NodeObject) =
+        ZX:ExecState [owise] .
+
+    ceq setProcessObject (ZX:ExecState, PO2:ProcessObject) =
+        setWorld(ZX:ExecState, PO2:ProcessObject W:Configuration)
+        if PO:ProcessObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameProcess(PO:ProcessObject, ZX:ExecState) .
+    eq setProcessObject (ZX:ExecState, PO2:ProcessObject) =
+        ZX:ExecState [owise] .
+
+    ceq setProcessObject (ZX:ExecState, N:Nat, P:Nat, PO2:ProcessObject) =
+        setWorld(ZX:ExecState, PO2:ProcessObject W:Configuration)
+        if PO:ProcessObject W:Configuration := getWorld(ZX:ExecState)
+        /\ sameProcess(PO:ProcessObject, N:Nat, P:Nat) .
+    eq setProcessObject (ZX:ExecState, N:Nat, P:Nat, PO2:ProcessObject) =
+        ZX:ExecState [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Context                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getContextStack : ExecState              -> ContextStack .
+    op setContextStack : ExecState ContextStack -> ExecState .
+    op setTopState     : ExecState ExpState     -> ExecState .
+    op getFunctionInfo : ExecState Value        -> FunctionInfo .
+    op getFunctionInfo : ExecState Qid          -> FunctionInfo .
+
+    eq getContextStack (ZX:ExecState) =
+        getContextStack(getProcessObject(ZX:ExecState)) .
+    eq getContextStack (ZX:ExecState) =
+        nil [owise] .
+
+    ceq setContextStack (ZX:ExecState, CS:ContextStack) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := setContextStack(PO1:ProcessObject, CS:ContextStack) .
+    eq setContextStack (ZX:ExecState, CS:ContextStack) =
+        ZX:ExecState [owise] .
+
+    ceq setTopState (ZX:ExecState, ES:ExpState) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := setTopState(PO1:ProcessObject, ES:ExpState) .
+
+    ceq getFunctionInfo (ZX:ExecState, V:Value) =
+        getFunctionInfo(ZX:ExecState, getSymbol(V:Value))
+        if isSymbol(V:Value) .
+    ceq getFunctionInfo (ZX:ExecState, V:Value) =
+        getFuncInfo(V:Value)
+        if isFunction(V:Value) .
+    eq getFunctionInfo (ZX:ExecState, V:Value) =
+        makeInvalidFunctionInfo [owise] .
+
+    ceq getFunctionInfo (ZX:ExecState, Q:Qid) =
+        (if (V:Value =/= makeGetValueError) and isFunction(V:Value) then
+            getFuncInfo(V:Value)
+        else
+            makeInvalidFunctionInfo
+        fi)
+        if isVariable(Q:Qid)
+        /\ V:Value := getValue(ZX:ExecState, Q:Qid) .
+    ceq getFunctionInfo (ZX:ExecState, Q:Qid) =
+        (if CX:Context == makeInvalidContext then
+            makeInvalidFunctionInfo
+        else
+            makeFunctionInfo(getNamespace(CX:Context) Q:Qid)
+        fi)
+        if CS:ContextStack := getContextStack(ZX:ExecState)
+        /\ CX:Context      := topContext(CS:ContextStack) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op topIndex    : ExecState                            -> Nat .
+    op getValue    : ExecState Qid                        -> Value .
+    op getValue    : ExecState References                 -> Value .
+    op $getValue   : ExecState Reference References       -> Value .
+    op setValue    : ExecState Qid Value                  -> ExecState .
+    op setValue    : ExecState References Value           -> ExecState .
+    op $setValue   : ExecState Reference References Value -> ExecState .
+    op setNewValue : ExecState Qid Value                  -> ExecState .
+
+    op setValueAndExecResult : ExecState Qid Value -> ExecState .
+
+    eq topIndex (ZX:ExecState) =
+        topIndex(getProcessObject(ZX:ExecState)) .
+
+    ceq getValue (ZX:ExecState, S:Qid) =
+        getValue(ZX:ExecState, RS:References)
+        if PO:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ RS:References    := getRefs(PO:ProcessObject, S:Qid) .
+
+    eq getValue (ZX:ExecState, R:Reference RS:References) =
+        $getValue(ZX:ExecState, R:Reference, RS:References) .
+    eq getValue (ZX:ExecState, RS:References) =
+        makeGetValueError [owise] .
+
+    ceq $getValue (ZX:ExecState, HR:HeapReference, RS:References) =
+        if NO:NodeObject =/= newEmptyNode then
+            getValue(NO:NodeObject, I:Nat, RS:References)
+        else
+            makeGetValueError
+        fi
+        if I:Nat         := getPosition(HR:HeapReference)
+        /\ N:Nat         := getNode(HR:HeapReference)
+        /\ NO:NodeObject := getNodeObject(ZX:ExecState, N:Nat) .
+    ceq $getValue (ZX:ExecState, SR:StackReference, RS:References) =
+        if PO:ProcessObject =/= newEmptyProcess then
+            getValue(PO:ProcessObject, I:Nat, RS:References)
+        else
+            makeGetValueError
+        fi
+        if I:Nat            := getPosition(SR:StackReference)
+        /\ N:Nat            := getNode(SR:StackReference)
+        /\ P:Nat            := getProcess(SR:StackReference)
+        /\ PO:ProcessObject := getProcessObject(ZX:ExecState, N:Nat, P:Nat) .
+    ceq $getValue (ZX:ExecState, FR:FunctionReference, RS:References) =
+        ---TODO: Complete the FunctionReference case...
+        makeGetValueError
+        if F:Qids := getFunction(FR:FunctionReference) .
+        ---...
+    eq $getValue (ZX:ExecState, R:Reference, RS:References) =
+        makeGetValueError [owise] .
+
+    ceq setValue (ZX:ExecState, S:Qid, V:Value) =
+        if getExecResult(Z2:ExecState) == makeSetValueError then
+            setNewValue(ZX:ExecState, S:Qid, V:Value)
+        else
+            Z2:ExecState
+        fi
+        if PO:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ RS:References    := getRefs(PO:ProcessObject, S:Qid)
+        /\ Z2:ExecState     := setValue(ZX:ExecState, RS:References, V:Value) .
+
+    eq setValue (ZX:ExecState, R:Reference RS:References, V:Value) =
+        $setValue(ZX:ExecState, R:Reference, RS:References, V:Value) .
+    eq setValue (ZX:ExecState, RS:References, V:Value) =
+        setExecResult(ZX:ExecState, makeSetValueError) [owise] .
+
+    ceq $setValue (ZX:ExecState, HR:HeapReference, RS:References, V:Value) =
+        if NO:NodeObject =/= newEmptyNode then
+            setNodeObject(
+                ZX:ExecState, N:Nat,
+                setCell(NO:NodeObject, I:Nat, RS:References, V:Value)
+            )
+        else
+            setExecResult(ZX:ExecState, makeSetValueError)
+        fi
+        if I:Nat         := getPosition(HR:HeapReference)
+        /\ N:Nat         := getNode(HR:HeapReference)
+        /\ NO:NodeObject := getNodeObject(ZX:ExecState, N:Nat) .
+    ceq $setValue (ZX:ExecState, SR:StackReference, RS:References, V:Value) =
+        if PO:ProcessObject =/= newEmptyProcess then
+            setProcessObject(
+                ZX:ExecState, N:Nat, P:Nat,
+                setCell(PO:ProcessObject, I:Nat, RS:References, V:Value)
+            )
+        else
+            setExecResult(ZX:ExecState, makeSetValueError)
+        fi
+        if I:Nat            := getPosition(SR:StackReference)
+        /\ N:Nat            := getNode(SR:StackReference)
+        /\ P:Nat            := getProcess(SR:StackReference)
+        /\ PO:ProcessObject := getProcessObject(ZX:ExecState, N:Nat, P:Nat) .
+    eq $setValue (ZX:ExecState, R:Reference, RS:References, V:Value) =
+        setExecResult(ZX:ExecState, makeSetValueError) [owise] .
+
+    ceq setNewValue (ZX:ExecState, S:Qid, V:Value) =
+        setProcessObject(ZX:ExecState, P2:ProcessObject)
+        if PO:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ P1:ProcessObject := pushValue(PO:ProcessObject, V:Value)
+        /\ R:Reference      := makeStackReference(topIndex(P1:ProcessObject),
+                               getNode(ZX:ExecState), getProcess(ZX:ExecState))
+        /\ P2:ProcessObject := addVariable(P1:ProcessObject, S:Qid, R:Reference) .
+
+    ceq setValueAndExecResult (ZX:ExecState, S:Qid, V:Value) =
+        if isErrorResult(Z2:ExecState) then
+            Z2:ExecState
+        else
+            setExecResult(Z2:ExecState, V:Value)
+        fi
+        if Z2:ExecState := setValue(ZX:ExecState, S:Qid, V:Value) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op cleanTopAmbitCode        : ExecState            -> ExecState .
+    op currentExpression        : ExecState            -> Expression .
+    op replaceExpression        : ExecState Expression -> ExecState .
+    op replaceExpressionBC      : ExecState Expression -> ExecState .
+    op replaceExpression        : ExecState ExecState  -> ExecState .
+    op replaceExpression        : ExecState Value      -> ExecState .
+    op getLastResult            : ExecState            -> Value .
+    op setLastResult            : ExecState Value      -> ExecState .
+    op removeMessage            : ExecState Value      -> ExecState .
+    op findFirstReady           : ExecState            -> Expression .
+    op setLastResultAndTopState : ExecState ExpState   -> ExecState .
+    op handleErrorException     : ExecState            -> ExecState .
+    op fullHandleErrorException : ExecState            -> ExecState .
+
+    ceq cleanTopAmbitCode (ZX:ExecState) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := cleanTopAmbitCode(PO1:ProcessObject) .
+
+    eq currentExpression (ZX:ExecState) =
+        currentExpression(getProcessObject(ZX:ExecState)) .
+
+    ceq replaceExpression (ZX:ExecState, E2:Expression) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := replaceExpression(PO1:ProcessObject, E2:Expression) .
+
+    ceq replaceExpressionBC (ZX:ExecState, E2:Expression) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := replaceExpressionBC(PO1:ProcessObject, E2:Expression) .
+
+    ceq replaceExpression (ZX:ExecState, Z2:ExecState) =
+        (if CSS1:Nat == CSS2:Nat then
+            replaceExpression(Z2:ExecState, FE:Expression)
+        else if CSS1:Nat < CSS2:Nat then
+            replaceExpressionBC(Z2:ExecState, FE:Expression)
+        else
+            Z2:ExecState
+        fi fi)
+        if CSS1:Nat      := size(getContextStack(ZX:ExecState))
+        /\ CSS2:Nat      := size(getContextStack(Z2:ExecState))
+        /\ CE:Expression := currentExpression(ZX:ExecState)
+        /\ TE:Expression := makeTemporalExpression(getExecResult(Z2:ExecState))
+        /\ FE:Expression := replaceFirstReady(CE:Expression, TE:Expression) .
+
+    ceq replaceExpression (ZX:ExecState, V:Value) =
+        replaceExpression(ZX:ExecState, FE:Expression)
+        if CE:Expression := currentExpression(ZX:ExecState)
+        /\ TE:Expression := makeTemporalExpression(V:Value)
+        /\ FE:Expression := replaceFirstReady(CE:Expression, TE:Expression) .
+
+    eq getLastResult (ZX:ExecState) =
+        getLastResult(getProcessObject(ZX:ExecState)) .
+
+    ceq setLastResult (ZX:ExecState, V:Value) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := setLastResult(PO1:ProcessObject, V:Value) .
+
+    ceq removeMessage (ZX:ExecState, V:Value) =
+        setProcessObject(ZX:ExecState, PO2:ProcessObject)
+        if PO1:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ PO2:ProcessObject := removeMessage(PO1:ProcessObject, V:Value) .
+
+    eq findFirstReady (ZX:ExecState) =
+        findFirstReady(currentExpression(ZX:ExecState)) .
+
+    ceq setLastResultAndTopState (ZX:ExecState, ES:ExpState) =
+        setTopState(setLastResult(ZX:ExecState, R:Value), ES:ExpState)
+        if R:Value := getExecResult(ZX:ExecState) .
+
+    eq handleErrorException (ZX:ExecState) =
+        if hasState(ZX:ExecState, @TryState) then
+            setTopState(ZX:ExecState, @CatchState)
+        else
+            setTopState(ZX:ExecState, @ErrorState)
+        fi .
+
+    eq fullHandleErrorException (ZX:ExecState) =
+        if hasState(ZX:ExecState, @TryState) then
+            setLastResultAndTopState(ZX:ExecState, @CatchState)
+        else
+            setLastResultAndTopState(ZX:ExecState, @ErrorState)
+        fi .
+
+endfm)

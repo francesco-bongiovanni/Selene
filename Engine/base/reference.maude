@@ -1,0 +1,182 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Reference}
+%)
+
+*** |====================================================================================|
+*** | Reference                                                                          |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod REFERENCE}
+    This functional module represents a reference inside the memory.
+
+\paragraph{HeapReference}
+    This operator represents a reference inside a heap segment of memory.
+    \begin{itemize}
+    \item \textbf{position:}
+        The position inside the element.
+    \item \textbf{node:}
+        The node id value where to find the heap.
+    \end{itemize}
+
+\paragraph{StackReference}
+    This operator represents a reference inside a stack segment of memory.
+    \begin{itemize}
+    \item \textbf{position:}
+        The position inside the element.
+    \item \textbf{node:}
+        The node id value where to find the stack.
+    \item \textbf{process:}
+        The process id value where to find the stack.
+    \end{itemize}
+
+\paragraph{IndexReference}
+    This operator represents a reference inside a list or tuple value.
+    \begin{itemize}
+    \item \textbf{position:}
+        The position inside the element.
+    \item \textbf{size:}
+        The size of elements to select, by default 1.
+    \end{itemize}
+
+\paragraph{Variable}
+    This operator represents a variable inside the memory.
+    \begin{itemize}
+    \item \textbf{name:}
+        The name of the variable.
+    \item \textbf{references:}
+        The references to locate the data.
+    \end{itemize}
+%)
+(fmod REFERENCE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr QID .
+    pr CONVERSION .
+    pr VIEW-TYPES .
+    pr UTILITY .
+
+    pr LIST2{Reference} * (sort List{Reference} to References) .
+    pr LIST2{Variable}  * (sort List{Variable}  to Variables) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort HeapReference StackReference IndexReference FunctionReference .
+
+    subsort HeapReference StackReference IndexReference FunctionReference < Reference .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @hr : Nat Nat     -> HeapReference     [ctor] .
+    op @sr : Nat Nat Nat -> StackReference    [ctor] .
+    op @ir : Nat Int     -> IndexReference    [ctor] .
+    op @fr : Qids        -> FunctionReference [ctor] .
+
+    op @vr : Qid References -> Variable  [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeHeapReference     : Nat Nat     -> HeapReference .
+    op makeStackReference    : Nat Nat Nat -> StackReference .
+    op makeIndexReference    : Nat         -> IndexReference .
+    op makeIndexReference    : Nat Int     -> IndexReference .
+    op makeFunctionReference : Qids        -> FunctionReference .
+
+    op makeVariable : Qid References -> Variable .
+
+    eq makeHeapReference     (I:Nat, N:Nat)        = @hr(I:Nat, N:Nat) .
+    eq makeStackReference    (I:Nat, N:Nat, P:Nat) = @sr(I:Nat, N:Nat, P:Nat) .
+    eq makeIndexReference    (I:Nat)               = @ir(I:Nat, 1) .
+    eq makeIndexReference    (I:Nat, S:Int)        = @ir(I:Nat, S:Int) .
+    eq makeIndexReference    (I:Nat, S:Int)        = @ir(I:Nat, S:Int) .
+    eq makeFunctionReference (F:Qids)              = @fr(F:Qids) .
+
+    eq makeVariable (Q:Qid, RS:References) = @vr(Q:Qid, RS:References) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getPosition : Reference -> Nat .
+    op getNode     : Reference -> Nat .
+    op getProcess  : Reference -> Nat .
+    op getSize     : Reference -> Int .
+    op getFunction : Reference -> Qids .
+
+    op getName : Variable -> Qid .
+    op getRefs : Variable -> References .
+
+    eq getPosition (@hr(I:Nat, N:Nat))        = I:Nat .
+    eq getPosition (@sr(I:Nat, N:Nat, P:Nat)) = I:Nat .
+    eq getPosition (@ir(I:Nat, S:Int))        = I:Nat .
+    eq getPosition (RF:Reference)             = 0 [owise] .
+
+    eq getNode (@hr(I:Nat, N:Nat))        = N:Nat .
+    eq getNode (@sr(I:Nat, N:Nat, P:Nat)) = N:Nat .
+    eq getNode (RF:Reference)             = 0 [owise] .
+
+    eq getProcess (@sr(I:Nat, N:Nat, P:Nat)) = P:Nat .
+    eq getProcess (RF:Reference)             = 0 [owise] .
+
+    eq getSize (@ir(I:Nat, S:Int)) = S:Int .
+    eq getSize (RF:Reference)      = 0 [owise] .
+
+    eq getFunction (@fr(F:Qids))  = F:Qids .
+    eq getFunction (RF:Reference) = nil [owise] .
+
+    eq getName (@vr(Q:Qid, RS:References)) = Q:Qid .
+    eq getRefs (@vr(Q:Qid, RS:References)) = RS:References .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isHeap     : Reference -> Bool .
+    op isStack    : Reference -> Bool .
+    op isIndex    : Reference -> Bool .
+    op isFunction : Reference -> Bool .
+
+    eq isHeap     (RF:Reference) = RF:Reference :: HeapReference .
+    eq isStack    (RF:Reference) = RF:Reference :: StackReference .
+    eq isIndex    (RF:Reference) = RF:Reference :: IndexReference .
+    eq isFunction (RF:Reference) = RF:Reference :: FunctionReference .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op getRefs : Variables Qid -> References .
+
+    ceq getRefs (LVS:Variables V:Variable RVS:Variables, S:Qid) =
+        getRefs(V:Variable)
+        if getName(V:Variable) == S:Qid .
+    eq getRefs (VS:Variables, S:Qid) =
+        nil [owise] .
+
+endfm)

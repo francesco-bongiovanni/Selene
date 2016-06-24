@@ -1,0 +1,157 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Configuration}
+%)
+
+*** |====================================================================================|
+*** | Configuration                                                                      |
+*** |====================================================================================|
+
+---(%
+\subsection{omod CONFIG}
+    This object module represents the configuration of the machine.
+
+\paragraph{class Config}
+    This class represents the configuration of the current application. It contains
+    the initial data to start the execution of the program in the world machine.
+    \begin{itemize}
+    \item \textbf{project:}
+        The project with the source code files.
+    \item \textbf{nodes:}
+        The number of nodes to start.
+    \item \textbf{startCalls:}
+        The start calls to run the project.
+    \end{itemize}
+%)
+(omod CONFIG is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr PROJECT .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ConfigObject .
+
+    subsort ConfigObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class Config | project    : InputFiles,
+                   nodes      : NzNat,
+                   startCalls : Configuration .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : ConfigObject if isConfig(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newConfig :     InputFiles NzNat Configuration -> Object .
+    op newConfig : Oid InputFiles NzNat Configuration -> Object .
+
+    eq newConfig (PR:InputFiles, ND:NzNat, SC:Configuration) =
+        newConfig('config, PR:InputFiles, ND:NzNat, SC:Configuration) .
+
+    eq newConfig (O:Oid, PR:InputFiles, ND:NzNat, SC:Configuration) =
+        < O:Oid : Config | project    : PR:InputFiles,
+                           nodes      : ND:NzNat,
+                           startCalls : SC:Configuration > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid        : ConfigObject -> Oid .
+    op getProject    : ConfigObject -> InputFiles .
+    op getNodes      : ConfigObject -> NzNat .
+    op getStartCalls : ConfigObject -> Configuration .
+
+    op setOid        : ConfigObject Oid           -> ConfigObject .
+    op setProject    : ConfigObject InputFiles    -> ConfigObject .
+    op setNodes      : ConfigObject NzNat         -> ConfigObject .
+    op setStartCalls : ConfigObject Configuration -> ConfigObject .
+
+    eq getOid (< O:Oid : Config | project    : PR:InputFiles,
+                                  nodes      : ND:NzNat,
+                                  startCalls : SC:Configuration >) = O:Oid .
+    eq getProject (< O:Oid : Config | project    : PR:InputFiles,
+                                      nodes      : ND:NzNat,
+                                      startCalls : SC:Configuration >) = PR:InputFiles .
+    eq getNodes (< O:Oid : Config | project    : PR:InputFiles,
+                                    nodes      : ND:NzNat,
+                                    startCalls : SC:Configuration >) = ND:NzNat .
+    eq getStartCalls (< O:Oid : Config | project    : PR:InputFiles,
+                                         nodes      : ND:NzNat,
+                                         startCalls : SC:Configuration >) = SC:Configuration .
+
+    eq setOid (< O:Oid : Config | project    : PR:InputFiles,
+                                  nodes      : ND:NzNat,
+                                  startCalls : SC:Configuration >, O2:Oid) =
+        < O2:Oid : Config | project    : PR:InputFiles,
+                            nodes      : ND:NzNat,
+                            startCalls : SC:Configuration > .
+    eq setProject (< O:Oid : Config | project    : PR:InputFiles,
+                                      nodes      : ND:NzNat,
+                                      startCalls : SC:Configuration >, PR2:InputFiles) =
+        < O:Oid : Config | project    : PR2:InputFiles,
+                           nodes      : ND:NzNat,
+                           startCalls : SC:Configuration > .
+    eq setNodes (< O:Oid : Config | project    : PR:InputFiles,
+                                    nodes      : ND:NzNat,
+                                    startCalls : SC:Configuration >, ND2:NzNat) =
+        < O:Oid : Config | project    : PR:InputFiles,
+                           nodes      : ND2:NzNat,
+                           startCalls : SC:Configuration > .
+    eq setStartCalls (< O:Oid : Config | project    : PR:InputFiles,
+                                         nodes      : ND:NzNat,
+                                         startCalls : SC:Configuration >, SC2:Configuration) =
+        < O:Oid : Config | project    : PR:InputFiles,
+                           nodes      : ND:NzNat,
+                           startCalls : SC2:Configuration > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isConfig : Object -> Bool .
+
+    eq isConfig (< O:Oid : Config | project    : PR:InputFiles,
+                                    nodes      : ND:NzNat,
+                                    startCalls : SC:Configuration >) = true .
+    eq isConfig (OBJ) = false [owise] .
+
+endom)

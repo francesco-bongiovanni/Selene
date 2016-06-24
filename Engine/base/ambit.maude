@@ -1,0 +1,276 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Ambit}
+%)
+
+*** |====================================================================================|
+*** | Context                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod AMBIT}
+    This functional module represents an ambit inside a context. The context
+    helps to the process to have track of the current executed code and the
+    variables aliases or names.
+
+\paragraph{Ambit}
+    This operator represents an ambit inside a context.
+    \begin{itemize}
+    \item \textbf{code:}
+        The next code expressions to be executed.
+    \item \textbf{state:}
+        The state of the current expression in execution.
+    \item \textbf{variables:}
+        The table of variables in the current ambit.
+    \end{itemize}
+%)
+(fmod AMBIT is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr MEMORY .
+    pr EXPRESSION .
+    pr VIEW-TYPES .
+
+    pr LIST2{Ambit} * (sort List{Ambit} to AmbitStack) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ExpState .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @am : Expressions ExpState Variables -> Ambit [ctor] .
+
+    op @InvalidAmbit    : -> ExpState [ctor] .
+    op @NoneState       : -> ExpState [ctor] .
+    op @InitialState    : -> ExpState [ctor] .
+    op @WorkingState    : -> ExpState [ctor] .
+    op @CallingState    : -> ExpState [ctor] .
+    op @AfterAmbitState : -> ExpState [ctor] .
+    op @MsgWaitState    : -> ExpState [ctor] .
+    op @LoopCheckState  : -> ExpState [ctor] .
+    op @TryState        : -> ExpState [ctor] .
+    op @CatchState      : -> ExpState [ctor] .
+    op @FinallyState    : -> ExpState [ctor] .
+    op @ExecutableState : -> ExpState [ctor] .
+    op @FinishedState   : -> ExpState [ctor] .
+    op @ErrorState      : -> ExpState [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeAmbit :                                -> Ambit .
+    op makeAmbit : ExpState                       -> Ambit .
+    op makeAmbit : Expressions Variables          -> Ambit .
+    op makeAmbit : Expressions ExpState Variables -> Ambit .
+
+    op makeInvalidAmbit : -> Ambit .
+
+    eq makeAmbit =
+        makeAmbit(nil, @NoneState, nil) .
+
+    eq makeAmbit (S:ExpState) =
+        makeAmbit(nil, S:ExpState, nil) .
+
+    eq makeAmbit (nil, V:Variables) =
+        makeAmbit(nil, @NoneState, V:Variables) .
+    eq makeAmbit (C:Expressions, V:Variables) =
+        makeAmbit(C:Expressions, @InitialState, V:Variables) [owise] .
+
+    eq makeAmbit (C:Expressions, S:ExpState, V:Variables) =
+        @am(C:Expressions, S:ExpState, V:Variables) .
+
+    eq makeInvalidAmbit =
+        makeAmbit(@InvalidAmbit) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getCode  : Ambit -> Expressions .
+    op getState : Ambit -> ExpState .
+    op getVars  : Ambit -> Variables .
+
+    op setCode  : Ambit Expressions -> Ambit .
+    op setState : Ambit ExpState    -> Ambit .
+    op setVars  : Ambit Variables   -> Ambit .
+
+    eq getCode  (@am(C:Expressions, S:ExpState, V:Variables)) = C:Expressions .
+    eq getState (@am(C:Expressions, S:ExpState, V:Variables)) = S:ExpState .
+    eq getVars  (@am(C:Expressions, S:ExpState, V:Variables)) = V:Variables .
+
+    eq setCode  (@am(C:Expressions,  S:ExpState,  V:Variables), C2:Expressions) =
+                 @am(C2:Expressions, S:ExpState,  V:Variables) .
+    eq setState (@am(C:Expressions,  S:ExpState,  V:Variables), S2:ExpState) =
+                 @am(C:Expressions,  S2:ExpState, V:Variables) .
+    eq setVars  (@am(C:Expressions,  S:ExpState,  V:Variables), V2:Variables) =
+                 @am(C:Expressions,  S:ExpState,  V2:Variables) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op hasError           : Ambit               -> Bool .
+    op hasState           : AmbitStack ExpState -> Bool .
+    op hasFinalState      : ExpState            -> Bool .
+    op hasEndedAmbit      : AmbitStack          -> Bool .
+    op hasEndedAmbits     : AmbitStack          -> Bool .
+    op hasEndedExpression : AmbitStack          -> Bool .
+    op hasAnyExpression   : AmbitStack          -> Bool .
+
+    ceq hasError (A:Ambit) =
+        S:ExpState == @ErrorState
+        if S:ExpState := getState(A:Ambit) .
+
+    eq hasState (AS:AmbitStack A:Ambit, S:ExpState) =
+        getState(A:Ambit) == S:ExpState .
+    eq hasState (AS:AmbitStack, S:ExpState) =
+        false [owise] .
+
+    eq  hasFinalState (@ErrorState)    = true  .
+    eq  hasFinalState (@NoneState)     = true  .
+    eq  hasFinalState (@FinishedState) = true  .
+    eq  hasFinalState (ES:ExpState)    = false [owise] .
+
+    ceq hasEndedAmbit (AS:AmbitStack A:Ambit) =
+        true
+        if getCode(A:Ambit) == nil
+        /\ hasFinalState(getState(A:Ambit)) .
+    eq hasEndedAmbit (AS:AmbitStack) =
+        AS:AmbitStack == nil [owise] .
+
+    eq hasEndedAmbits (A:Ambit) =
+        hasEndedAmbit(A:Ambit) .
+    eq hasEndedAmbits (AS:AmbitStack) =
+        AS:AmbitStack == nil [owise] .
+
+    eq hasEndedExpression (AS:AmbitStack) =
+        hasState(AS:AmbitStack, @FinishedState) [owise] .
+
+    eq hasAnyExpression (AS:AmbitStack A:Ambit) =
+        hasAnyElem(getCode(A:Ambit)) .
+    eq hasAnyExpression (AS:AmbitStack) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Stack                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op pushAmbit : AmbitStack Ambit -> AmbitStack .
+    op popAmbit  : AmbitStack       -> AmbitStack .
+    op topAmbit  : AmbitStack       -> Ambit .
+
+    eq pushAmbit (AS:AmbitStack, A:Ambit) = AS:AmbitStack A:Ambit .
+    eq popAmbit  (AS:AmbitStack A:Ambit)  = AS:AmbitStack .
+    eq popAmbit  (AS:AmbitStack)          = AS:AmbitStack [owise] .
+    eq topAmbit  (AS:AmbitStack A:Ambit)  = A:Ambit .
+    eq topAmbit  (AS:AmbitStack)          = makeInvalidAmbit [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op addVariable : AmbitStack Qid References -> AmbitStack .
+    op addVariable : AmbitStack Variable       -> AmbitStack .
+    op getRefs     : AmbitStack Qid            -> References .
+
+    eq addVariable (AS:AmbitStack, S:Qid, RS:References) =
+        addVariable(AS:AmbitStack, makeVariable(S:Qid, RS:References)) .
+
+    eq addVariable (AS:AmbitStack A:Ambit, V:Variable) =
+        AS:AmbitStack setVars(A:Ambit, getVars(A:Ambit) V:Variable) .
+    eq addVariable (AS:AmbitStack, V:Variable) =
+        nil [owise] .
+
+    ceq getRefs (AS:AmbitStack A:Ambit, S:Qid) =
+        if R:References == nil then
+            getRefs(AS:AmbitStack, S:Qid)
+        else
+            R:References
+        fi
+        if R:References := getRefs(getVars(A:Ambit), S:Qid) .
+    eq getRefs (AS:AmbitStack, S:Qid) =
+        nil [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op cleanTopAmbitCode : AmbitStack            -> AmbitStack .
+    op replaceTopAmbit   : AmbitStack Ambit      -> AmbitStack .
+    op mergeLastAmbits   : AmbitStack            -> AmbitStack .
+    op currentExpression : AmbitStack            -> Expression .
+    op replaceExpression : AmbitStack Expression -> AmbitStack .
+    op nextExpression    : AmbitStack            -> AmbitStack .
+    op getVariables      : AmbitStack            -> Variables .
+
+    eq cleanTopAmbitCode (AS:AmbitStack A:Ambit) =
+        AS:AmbitStack setCode(A:Ambit, nil) .
+    eq cleanTopAmbitCode (AS:AmbitStack) =
+        AS:AmbitStack [owise] .
+
+    eq replaceTopAmbit (AS:AmbitStack A1:Ambit, A2:Ambit) =
+        AS:AmbitStack A2:Ambit .
+    eq replaceTopAmbit (AS:AmbitStack, A2:Ambit) =
+        AS:AmbitStack [owise] .
+
+    ceq mergeLastAmbits (AS:AmbitStack A1:Ambit A2:Ambit) =
+        AS:AmbitStack setVars(A1:Ambit, V1:Variables V2:Variables)
+        if V1:Variables := getVars(A1:Ambit)
+        /\ V2:Variables := getVars(A2:Ambit) .
+    eq mergeLastAmbits (AS:AmbitStack) =
+        popAmbit(AS:AmbitStack) [owise] .
+
+    ceq currentExpression (AS:AmbitStack A:Ambit) =
+        E:Expression
+        if E:Expression CS:Expressions := getCode(A:Ambit) .
+    eq currentExpression (AS:AmbitStack) =
+        makeEndExpression [owise] .
+
+    ceq replaceExpression (AS:AmbitStack A:Ambit, E2:Expression) =
+        AS:AmbitStack setCode(A:Ambit, E2:Expression CS:Expressions)
+        if E:Expression CS:Expressions := getCode(A:Ambit) .
+    eq replaceExpression (AS:AmbitStack, E2:Expression) =
+        AS:AmbitStack [owise] .
+
+    ceq nextExpression (AS:AmbitStack A:Ambit) =
+        if CS:Expressions == nil then
+            AS:AmbitStack makeAmbit(CS:Expressions, @NoneState, VS:Variables)
+        else
+            AS:AmbitStack makeAmbit(CS:Expressions, @InitialState, VS:Variables)
+        fi
+        if E:Expression CS:Expressions := getCode(A:Ambit)
+        /\ VS:Variables                := getVars(A:Ambit) .
+    eq nextExpression (AS:AmbitStack) =
+        AS:AmbitStack [owise] .
+
+    eq getVariables (A:Ambit AS:AmbitStack) =
+        getVars(A:Ambit) getVariables(AS:AmbitStack) .
+    eq getVariables (AS:AmbitStack) =
+        nil [owise] .
+
+endfm)

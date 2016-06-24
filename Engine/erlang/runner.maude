@@ -1,0 +1,687 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Runner}
+%)
+
+*** |====================================================================================|
+*** | Runner                                                                             |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod RUNNER}
+    This functional module represents the running engine to execute a program inside
+    a created machine in a world configuration.
+%)
+(mod RUNNER is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr PARSER .
+    pr OPERATIONS .
+    pr INFODATA .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: General                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op validateWorldWithAEIS  : Configuration ProcessObject ExpState -> Bool .
+    op validateWorldWithAETE  : Configuration ProcessObject          -> Bool .
+    op validateWorldWithHS    : Configuration ProcessObject ExpState -> Bool .
+    op validateWorldWithHEE   : Configuration ProcessObject          -> Bool .
+    op validateWorldWithHEA   : Configuration ProcessObject          -> Bool .
+    op validateWorldWithHEC   : Configuration ProcessObject          -> Bool .
+    op validateWorldWithHEP   : Configuration ProcessObject          -> Bool .
+    op validateWorldWithISD   : Configuration ProcessObject Message  -> Bool .
+    op validateWorldWithARIWS : Configuration ProcessObject          -> Bool .
+    op validateWorld          : Configuration ProcessObject          -> Bool .
+
+    op anyExprInState     : ProcessObject ExpState -> Bool .
+    op anyExprToExecute   : ProcessObject          -> Bool .
+    op anyRecvInWaitState : ProcessObject          -> Bool .
+
+    eq validateWorldWithAEIS (W:Configuration, PO:ProcessObject, ES:ExpState) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        anyExprInState(PO:ProcessObject, ES:ExpState) .
+
+    eq validateWorldWithAETE (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        anyExprToExecute(PO:ProcessObject) .
+
+    eq validateWorldWithHS (W:Configuration, PO:ProcessObject, ES:ExpState) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        hasState(PO:ProcessObject, ES:ExpState) .
+
+    eq validateWorldWithHEE (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        hasEndedExpression(PO:ProcessObject) .
+
+    eq validateWorldWithHEA (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        hasEndedAmbit(PO:ProcessObject) .
+
+    eq validateWorldWithHEC (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        hasEndedCall(PO:ProcessObject) .
+
+    eq validateWorldWithHEP (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        hasEndedProcess(PO:ProcessObject) .
+
+    eq validateWorldWithISD (W:Configuration, PO:ProcessObject, MSG:Message) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        isSameDestination(PO:ProcessObject, MSG:Message) and
+        isFirstMessage(MSG:Message, W:Configuration) .
+
+    eq validateWorldWithARIWS (W:Configuration, PO:ProcessObject) =
+        validateWorld(W:Configuration, PO:ProcessObject) and
+        anyRecvInWaitState(PO:ProcessObject) .
+
+    ceq validateWorld (NO:NodeObject SO:StatusObject W:Configuration, PO:ProcessObject) =
+        true
+        if getOid(NO:NodeObject) == getOwner(PO:ProcessObject) .
+    eq validateWorld (W:Configuration, PO:ProcessObject) =
+        false [owise] .
+
+    ceq anyExprInState (PO:ProcessObject, ES:ExpState) =
+        true
+        if hasAnyExpression(PO:ProcessObject)
+        /\ hasState(PO:ProcessObject, ES:ExpState) .
+    eq anyExprInState (PO:ProcessObject, ES:ExpState) =
+        false [owise] .
+
+    ceq anyExprToExecute (PO:ProcessObject) =
+        true
+        if anyExprInState(PO:ProcessObject, @ExecutableState) .
+    eq anyExprToExecute (PO:ProcessObject) =
+        false [owise] .
+
+    ceq anyRecvInWaitState (PO:ProcessObject) =
+        true
+        if CE:Expression := currentExpression(PO:ProcessObject)
+        /\ anyExprInState(PO:ProcessObject, @MsgWaitState)
+        /\ findFirstReady(CE:Expression) :: ReceiveExpression .
+    eq anyRecvInWaitState (PO:ProcessObject) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: Statements                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op initStatement  : ExecState -> ExecState . --- Initialize
+    op workStatement  : ExecState -> ExecState . --- Working
+    op execStatement  : ExecState -> ExecState . --- Execution
+    op acscStatement  : ExecState -> ExecState . --- After Context Stack Change
+    op recvStatement  : ExecState -> ExecState . --- Receive
+
+    ceq initStatement (ZX:ExecState) =
+        (if isExecutable(E:Expression) then
+            setTopState(ZX:ExecState, @ExecutableState)
+        else
+            setTopState(ZX:ExecState, @WorkingState)
+        fi)
+        if E:Expression := currentExpression(ZX:ExecState) .
+
+    ceq workStatement (ZX:ExecState) =
+        (if (RE:Expression :: ReceiveExpression) then
+            setTopState(ZX:ExecState, @MsgWaitState)
+        else if isErrorResult(Z2:ExecState) then
+            fullHandleErrorException(Z2:ExecState)
+        else if hasExecCall(ZX:ExecState, Z2:ExecState) then
+            initStatement(Z2:ExecState)
+        else
+            initStatement(replaceExpression(ZX:ExecState, Z2:ExecState))
+        fi fi fi)
+        if RE:Expression := findFirstReady(ZX:ExecState)
+        /\ Z2:ExecState  := checkAndExecute(RE:Expression, ZX:ExecState) .
+
+    ceq execStatement (ZX:ExecState) =
+        (if (RE:Expression :: ReceiveExpression) then
+            setTopState(ZX:ExecState, @MsgWaitState)
+        else if isErrorResult(Z2:ExecState) then
+            fullHandleErrorException(Z2:ExecState)
+        else if hasExecCall(ZX:ExecState, Z2:ExecState) then
+            initStatement(Z2:ExecState)
+        else
+            setLastResultAndTopState(Z2:ExecState, @FinishedState)
+        fi fi fi)
+        if RE:Expression := currentExpression(ZX:ExecState)
+        /\ Z2:ExecState  := checkAndExecute(RE:Expression, ZX:ExecState) .
+
+    ceq acscStatement (ZX:ExecState) =
+        (if isError(RV:Value) then
+            handleErrorException(ZX:ExecState)
+        else
+            initStatement(replaceExpression(ZX:ExecState, RV:Value))
+        fi)
+        if RV:Value := getLastResult(ZX:ExecState) .
+
+    ceq recvStatement (ZX:ExecState) =
+        (if isErrorResult(Z2:ExecState) then
+            setLastResultAndTopState(Z2:ExecState, @ErrorState)
+        else
+            initStatement(Z2:ExecState)
+        fi)
+        if RE:Expression := findFirstReady(ZX:ExecState)
+        /\ Z2:ExecState  := executeReceive(RE:Expression, ZX:ExecState) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: Execute                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op checkAndExecute   : Expression ExecState         -> ExecState .
+    op executeExpression : Expression ExecState         -> ExecState .
+    op executeReceive    : Expression ExecState         -> ExecState .
+    op $executeReceive   : Expressions Values ExecState -> ExecState .
+
+    ---TODO: Complete other BIF calls...
+    ceq checkAndExecute (RE:Expression, ZX:ExecState) =
+        executePrintCall(RE:Expression, ZX:ExecState)
+        if isPrintCall(RE:Expression) .
+    ---...
+    ceq checkAndExecute (RE:Expression, ZX:ExecState) =
+        executeRegister2(RE:Expression, ZX:ExecState)
+        if isRegister2(RE:Expression) .
+    ceq checkAndExecute (RE:Expression, ZX:ExecState) =
+        executeSelf0(RE:Expression, ZX:ExecState)
+        if isSelf0(RE:Expression) .
+    eq checkAndExecute (RE:Expression, ZX:ExecState) =
+        executeExpression(RE:Expression, ZX:ExecState) [owise] .
+
+    eq executeExpression (E:TemporalExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, toValue(E:TemporalExpression)) .
+
+    eq executeExpression (E:LiteralExpression, ZX:ExecState) =
+        if isSymbolVariable(E:LiteralExpression) then
+            setExecResult(
+                ZX:ExecState,
+                getValue(ZX:ExecState, getSymbol(E:LiteralExpression))
+            )
+        else
+            setExecResult(ZX:ExecState, toValue(E:LiteralExpression))
+        fi .
+
+    ceq executeExpression (E:UOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, plus(R:Value))
+        if @add    := getSymbol(E:UOperationExpression)
+        /\ R:Value := getValue(getRHS(E:UOperationExpression)) .
+
+    ceq executeExpression (E:UOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, minus(R:Value))
+        if @sub    := getSymbol(E:UOperationExpression)
+        /\ R:Value := getValue(getRHS(E:UOperationExpression)) .
+
+    ceq executeExpression (E:UOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, not(R:Value))
+        if @not    := getSymbol(E:UOperationExpression)
+        /\ R:Value := getValue(getRHS(E:UOperationExpression)) .
+
+    ceq executeExpression (E:UOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, bnot(R:Value))
+        if @bnot   := getSymbol(E:UOperationExpression)
+        /\ R:Value := getValue(getRHS(E:UOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        (if isInvalid(FI:FunctionInfo) then
+            setExecResult(ZX:ExecState, makeGetFunctionError)
+        else
+            invokeFunction(ZX:ExecState, FI:FunctionInfo, getValues(R:Value))
+        fi)
+        if @call           := getSymbol(E:BOperationExpression)
+        /\ L:Value         := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value         := getValue(getRHS(E:BOperationExpression))
+        /\ FI:FunctionInfo := getFunctionInfo(ZX:ExecState, L:Value)
+        /\ isList(R:Value) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, V:Value)
+        if @get    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression))
+        /\ (isSymbolNotVariable(L:Value) and isSymbolNotVariable(R:Value))
+        /\ V:Value := makeFunctionValue(getSymbol(L:Value) getSymbol(R:Value)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        (if V:Value == makeGetValueError then
+            setValueAndExecResult(ZX:ExecState, getSymbol(L:Value), R:Value)
+        else if V:Value == R:Value then
+            setExecResult(ZX:ExecState, R:Value)
+        else
+            setExecResult(ZX:ExecState, makeMatchError)
+        fi fi)
+        if @set    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression))
+        /\ isSymbolVariable(L:Value)
+        /\ V:Value := getValue(ZX:ExecState, getSymbol(L:Value)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        ---TODO: Complete other pattern matching expressions in the set operation...
+        (if isSymbol(L:Value) and (L:Value == R:Value) then
+            setExecResult(ZX:ExecState, R:Value)
+        else
+            setExecResult(ZX:ExecState, makeMatchError)
+        fi)
+        if @set    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression))
+        /\ not isSymbolVariable(L:Value) .
+        ---...
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        if isError(PID:Value) then
+            setExecResult(ZX:ExecState, PID:Value)
+        else
+            setExecResult(addMessage(ZX:ExecState, PID:Value, R:Value), R:Value)
+        fi
+        if @snd      := getSymbol(E:BOperationExpression)
+        /\ L:Value   := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value   := getValue(getRHS(E:BOperationExpression))
+        /\ PID:Value := findProcessAlias(ZX:ExecState, L:Value) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, addition(L:Value, R:Value))
+        if @add    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, subtraction(L:Value, R:Value))
+        if @sub    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, multiplication(L:Value, R:Value))
+        if @mul    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, division(L:Value, R:Value))
+        if @div    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, integerDivision(L:Value, R:Value))
+        if @idiv   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, remainder(L:Value, R:Value))
+        if @rem    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, equal(L:Value, R:Value))
+        if @equ    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, notEqual(L:Value, R:Value))
+        if @nequ   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, less(L:Value, R:Value))
+        if @lst    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, greater(L:Value, R:Value))
+        if @grt    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, lessOrEqual(L:Value, R:Value))
+        if @lte    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, greaterOrEqual(L:Value, R:Value))
+        if @gte    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, fullEqual(L:Value, R:Value))
+        if @sequ   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, fullNotEqual(L:Value, R:Value))
+        if @sneq   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, and(L:Value, R:Value))
+        if @and    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, or(L:Value, R:Value))
+        if @or     := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, xor(L:Value, R:Value))
+        if @xor    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, band(L:Value, R:Value))
+        if @band   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, bor(L:Value, R:Value))
+        if @bor    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, bxor(L:Value, R:Value))
+        if @bxor   := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, shiftLeft(L:Value, R:Value))
+        if @shl    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ceq executeExpression (E:BOperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, shiftRight(L:Value, R:Value))
+        if @shr    := getSymbol(E:BOperationExpression)
+        /\ L:Value := getValue(getLHS(E:BOperationExpression))
+        /\ R:Value := getValue(getRHS(E:BOperationExpression)) .
+
+    ---TODO: Complete other execute operations...
+    ---...
+
+    eq executeExpression (E:Expression, ZX:ExecState) =
+        if E:Expression :: OperationExpression then
+            setExecResult(ZX:ExecState, makeOperationError)
+        else
+            setExecResult(ZX:ExecState, makeExecuteError)
+        fi
+        [owise] .
+
+    ceq executeReceive (E:ReceiveExpression, ZX:ExecState) =
+        $executeReceive(ES:Expressions, MS:Values, ZX:ExecState)
+        if MS:Values      := getMessages(getProcessObject(ZX:ExecState))
+        /\ ES:Expressions := getClauses(E:ReceiveExpression) .
+    eq executeReceive (E:Expression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, makeExecuteError) [owise] .
+
+    ceq $executeReceive (ES:Expressions, V:Value VS:Values, ZX:ExecState) =
+        (if hasTopAnError(CS:ContextStack) then
+            $executeReceive(ES:Expressions, VS:Values, ZX:ExecState)
+        else
+            Z3:ExecState
+        fi)
+        if CS:ContextStack := addAmbit(ES:Expressions, V:Value, true, ZX:ExecState)
+        /\ Z2:ExecState    := setContextStack(ZX:ExecState, CS:ContextStack)
+        /\ Z3:ExecState    := removeMessage(Z2:ExecState, V:Value) .
+    ceq $executeReceive (ES:Expressions, VS:Values, ZX:ExecState) =
+        setProcessObject(ZX:ExecState, P2:ProcessObject)
+        if PO:ProcessObject := getProcessObject(ZX:ExecState)
+        /\ P2:ProcessObject := setNewMsgsFlag(PO:ProcessObject, false) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: BIFs                                                            |
+    *** |------------------------------------------------------------------------------|
+
+    *** |------------------------------------------------------------------------------|
+    *** | BIF: register/2                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op isRegister2      : Expression           -> Bool .
+    op executeRegister2 : Expression ExecState -> ExecState .
+
+    eq isRegister2 (E:Expression) = isCall('register, 2, E:Expression) .
+
+    ceq executeRegister2 (OE:OperationExpression, ZX:ExecState) =
+        if B1:Bool or B2:Bool or B3:Bool or B4:Bool then
+            setExecResult(ZX:ExecState, makeArgumentsError)
+        else
+            setExecResult(Z2:ExecState, makeValue(true))
+        fi
+        if P1:Value P2:Value := toValues(getRHS(OE:OperationExpression))
+        /\ A:Qid             := getSymbol(P1:Value)
+        /\ N:Nat             := getNode(P2:Value)
+        /\ P:Nat             := getProcess(P2:Value)
+        /\ PA:Object         := newProcessAlias(A:Qid, N:Nat, P:Nat)
+        /\ NO:NodeObject     := getNodeObject(ZX:ExecState)
+        /\ PO:ProcessObject  := getProcessObject(ZX:ExecState, N:Nat, P:Nat)
+        /\ C1:Configuration  := getInfo(NO:NodeObject)
+        /\ N2:NodeObject     := setInfo(NO:NodeObject, PA:Object C1:Configuration)
+        /\ Z2:ExecState      := setNodeObject(ZX:ExecState, N2:NodeObject)
+        /\ B1:Bool           := (A:Qid == 'undefined)
+        /\ B2:Bool           := containsProcessAlias(A:Qid, C1:Configuration)
+        /\ B3:Bool           := containsProcessAlias(N:Nat, P:Nat, C1:Configuration)
+        /\ B4:Bool           := (PO:ProcessObject == newEmptyProcess) .
+    eq executeRegister2 (E:Expression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, makeArgumentsError) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | BIF: self/0                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op isSelf0      : Expression           -> Bool .
+    op executeSelf0 : Expression ExecState -> ExecState .
+
+    eq isSelf0 (E:Expression) = isCall('self, 0, E:Expression) .
+
+    ceq executeSelf0 (OE:OperationExpression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, makeValue(N:Nat, P:Nat))
+        if N:Nat := getNode(ZX:ExecState)
+        /\ P:Nat := getProcess(ZX:ExecState) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | BIF: spawn/3                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op isSpawn3      : Expression           -> Bool .
+    op executeSpawn3 : Expression ExecState -> ExecState .
+
+    eq isSpawn3 (E:Expression) = isCall('spawn, 3, E:Expression) .
+
+    ceq executeSpawn3 (OE:OperationExpression, ZX:ExecState) =
+        if B1:Bool or B2:Bool or B3:Bool then
+            setExecResult(ZX:ExecState, makeArgumentsError)
+        else
+            setExecResult(Z2:ExecState, makeValue(N:Nat, P:Nat))
+        fi
+        if VS:Values        := toValues(getRHS(OE:OperationExpression))
+        /\ M:Qid            := getSymbol(VS:Values !! 0)
+        /\ F:Qid            := getSymbol(VS:Values !! 1)
+        /\ A:Values         := getValues(VS:Values !! 2)
+        /\ N:Nat            := getNode(ZX:ExecState)
+        /\ W1:Configuration := getWorld(ZX:ExecState)
+        /\ W2:Configuration := startProcess(N:Nat, M:Qid F:Qid, A:Values, W1:Configuration)
+        /\ P:Nat            := findNewProcessID(W1:Configuration, W2:Configuration)
+        /\ Z2:ExecState     := setWorld(ZX:ExecState, W2:Configuration)
+        /\ B1:Bool          := (W1:Configuration == W2:Configuration)
+        /\ B2:Bool          := ((VS:Values !! 2) == A:Values)
+        /\ B3:Bool          := (P:Nat == 0) .
+    eq executeSpawn3 (E:Expression, ZX:ExecState) =
+        setExecResult(ZX:ExecState, makeArgumentsError) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | BIF: io:format/1                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    *** |------------------------------------------------------------------------------|
+    *** | BIF: io:format/2                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    --- TODO: Refactor this operation from print() to io:format()...
+    --- Reference: http://erlang.org/doc/man/io.html#format-1
+    op isPrintCall      : Expression           -> Bool .
+    op executePrintCall : Expression ExecState -> ExecState .
+
+    eq isPrintCall (E:Expression) = isCall('print, E:Expression) .
+
+    ceq executePrintCall (OE:OperationExpression, ZX:ExecState) =
+        setExecResult(Z2:ExecState, makeValue('ok))
+        if PS:Expressions  := getExpressions(getRHS(OE:OperationExpression))
+        /\ N:Nat           := getNode(ZX:ExecState)
+        /\ W:Configuration := print(toString(N:Nat, PS:Expressions), ZX:ExecState)
+        /\ Z2:ExecState    := setWorld(ZX:ExecState, W:Configuration) .
+    ---...
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op cleanInfo : Configuration ProcessObject -> Configuration .
+
+    ceq cleanInfo (NO:NodeObject W:Configuration, PO:ProcessObject) =
+        N2:NodeObject W:Configuration
+        if getOwner(PO:ProcessObject) == getOid(NO:NodeObject)
+        /\ N2:NodeObject := removeProcessAlias(NO:NodeObject, PO:ProcessObject) .
+    eq cleanInfo (W:Configuration, PO:ProcessObject) =
+        W:Configuration [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Rules                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    --- TODO: Check this warning...
+    --- Advisory: <automatic>: collapse at top of ...
+    ---  5.4.1 The rewrite command ( http://maude.lcc.uma.es/manual/maude-manualch5.html#x37-700005.4      )
+    --- 14.2.6 Collapse theories   ( http://maude.lcc.uma.es/manual/maude-manualch14.html#x73-22300014.2.6 )
+
+    crl [world.init] :
+        CO:ConfigObject W:Configuration
+        => W4:Configuration
+        if W0:Configuration := makeStatus(CO:ConfigObject W:Configuration)
+        /\ W1:Configuration := makeProject(W0:Configuration)
+        /\ W2:Configuration := makeNodes(W1:Configuration)
+        /\ W3:Configuration := makeProcesses(W2:Configuration)
+        /\ W4:Configuration := filterConfigObjects(W3:Configuration)
+        [print "[Rule: world.init]"] .
+
+    crl [statement.init] :
+        PO:ProcessObject W:Configuration
+        => getWorld(initStatement(ZX:ExecState))
+        if validateWorldWithAEIS(W:Configuration, PO:ProcessObject, @InitialState)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: statement.init]"] .
+
+    crl [statement.work] :
+        PO:ProcessObject W:Configuration
+        => getWorld(workStatement(ZX:ExecState))
+        if validateWorldWithAEIS(W:Configuration, PO:ProcessObject, @WorkingState)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: statement.work]"] .
+
+    crl [statement.exec] :
+        PO:ProcessObject W:Configuration
+        => getWorld(execStatement(ZX:ExecState))
+        if validateWorldWithAETE(W:Configuration, PO:ProcessObject)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: statement.exec]"] .
+
+    crl [statement.afcl] :
+        PO:ProcessObject W:Configuration
+        => getWorld(acscStatement(ZX:ExecState))
+        if validateWorldWithAEIS(W:Configuration, PO:ProcessObject, @CallingState)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: statement.afcl]"] .
+
+    crl [statement.afam] :
+        PO:ProcessObject W:Configuration
+        => getWorld(acscStatement(ZX:ExecState))
+        if validateWorldWithAEIS(W:Configuration, PO:ProcessObject, @AfterAmbitState)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: statement.afam]"] .
+
+    crl [statement.error] :
+        PO:ProcessObject W:Configuration
+        => ambitReturn(PO:ProcessObject, true) W:Configuration
+        if validateWorldWithHS(W:Configuration, PO:ProcessObject, @ErrorState)
+        [print "[Rule: statement.error]"] .
+
+    crl [statement.next] :
+        PO:ProcessObject W:Configuration
+        => nextExpression(PO:ProcessObject) W:Configuration
+        if validateWorldWithHEE(W:Configuration, PO:ProcessObject)
+        [print "[Rule: statement.next]"] .
+
+    crl [ambit.finish] :
+        PO:ProcessObject W:Configuration
+        => ambitReturn(PO:ProcessObject, true) W:Configuration
+        if validateWorldWithHEA(W:Configuration, PO:ProcessObject)
+        [print "[Rule: ambit.finish]"] .
+
+    crl [call.finish] :
+        PO:ProcessObject W:Configuration
+        => callReturn(PO:ProcessObject) W:Configuration
+        if validateWorldWithHEC(W:Configuration, PO:ProcessObject)
+        [print "[Rule: call.finish]"] .
+
+    crl [process.finish] :
+        PO:ProcessObject W:Configuration
+        => cleanInfo(W:Configuration, PO:ProcessObject)
+        if validateWorldWithHEP(W:Configuration, PO:ProcessObject)
+        /\ R:Value := getLastResult(PO:ProcessObject)
+        /\ B:Bool  := print("Final result:", R:Value)
+        [print "[Rule: process.finish]"] .
+
+    crl [process.msg.add] :
+        MSG:Message PO:ProcessObject W:Configuration
+        => addMessage(PO:ProcessObject, MSG:Message) W:Configuration
+        if validateWorldWithISD(W:Configuration, PO:ProcessObject, MSG:Message)
+        [print "[Rule: process.msg.add]"] .
+
+    crl [process.msg.get] :
+        PO:ProcessObject W:Configuration
+        => getWorld(recvStatement(ZX:ExecState))
+        if validateWorldWithARIWS(W:Configuration, PO:ProcessObject)
+        /\ getNewMsgsFlag(PO:ProcessObject)
+        /\ ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        [print "[Rule: process.msg.get]"] .
+
+    ---TODO: Someday the after clause of the receive statement should be implemented.
+    ---      It would be something like check if there is any receive in wait state
+    ---      with the new message flag in false and with a valid after clause. If that
+    ---      is the case, the process object should has a time counter, where each
+    ---      execution of any rule would add 1 ms to the process in waiting state.
+    ---      If the after time-out is reached, a rule will be called to execute the
+    ---      code in the clause.
+
+endm)

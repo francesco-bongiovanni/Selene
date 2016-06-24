@@ -1,0 +1,204 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Memory}
+%)
+
+*** |====================================================================================|
+*** | Memory                                                                             |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod MEMORY-SEGMENT}
+    This functional module represents the memory inside the machine.
+
+\paragraph{MemoryCell}
+    This operator represents a memory cell inside a memory segment.
+    \begin{itemize}
+    \item \textbf{position:}
+        The position of the cell inside the segment.
+    \item \textbf{value:}
+        The value of the cell with the current data.
+    \end{itemize}
+
+\paragraph{MemorySegment}
+    This operator represents a memory segment inside a node.
+    \begin{itemize}
+    \item \textbf{cells:}
+        The collection of cells.
+    \end{itemize}
+%)
+(fmod MEMORY is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr NAT .
+    pr VALUE .
+    pr VIEW-TYPES .
+
+    pr LIST2{MemoryCell} * (sort List{MemoryCell} to MemoryCells) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort MemorySegment .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @mc : Nat Value   -> MemoryCell    [ctor] .
+    op @ms : MemoryCells -> MemorySegment [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    vars N   N2   : Nat .
+    vars V   V2   : Value .
+    vars MCS MCS2 : MemoryCells .
+
+    var VS : Values .
+    var MC : MemoryCell .
+    var MS : MemorySegment .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeNullCell      :                     -> MemoryCell .
+    op makeMemoryCell    : Nat Value           -> MemoryCell .
+    op makeMemorySegment :                     -> MemorySegment .
+    op makeMemorySegment : MemoryCells         -> MemorySegment .
+    op makeMemorySegment : Value               -> MemorySegment .
+    op makeMemorySegment : Values              -> MemorySegment .
+    op makeMemorySegment : MemorySegment Value -> MemorySegment .
+
+    eq makeNullCell              = @mc(0, makeGetValueError) .
+    eq makeMemoryCell    (N, V)  = @mc(N, V) .
+    eq makeMemorySegment         = @ms(nil) .
+    eq makeMemorySegment (MCS)   = @ms(MCS) .
+    eq makeMemorySegment (V)     = pushValue(makeMemorySegment, V) .
+    eq makeMemorySegment (VS)    = pushValues(makeMemorySegment, VS) .
+    eq makeMemorySegment (MS, V) = @ms(@mc(nextIndex(MS), V)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: MemoryCell                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op getPosition : MemoryCell -> Nat .
+    op getValue    : MemoryCell -> Value .
+
+    op setPosition : MemoryCell Nat   -> MemoryCell .
+    op setValue    : MemoryCell Value -> MemoryCell .
+
+    eq getPosition (@mc(N, V)) = N .
+    eq getValue    (@mc(N, V)) = V .
+
+    eq setPosition (@mc(N, V), N2) = @mc(N2, V) .
+    eq setValue    (@mc(N, V), V2) = @mc(N, V2) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: MemorySegment                                               |
+    *** |------------------------------------------------------------------------------|
+
+    op getCells : MemorySegment -> MemoryCells .
+
+    op setCells : MemorySegment MemoryCells -> MemorySegment .
+
+    eq getCells    (@ms(MCS)) = MCS .
+
+    eq setCells    (@ms(MCS), MCS2) = @ms(MCS2) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op hasCell    : MemorySegment Nat -> Bool .
+    op isNullCell : MemoryCells       -> Bool .
+
+    ceq hasCell (@ms(MCS MC MCS2), N) = true  if N == getPosition(MC) .
+    eq  hasCell (@ms(MCS), N)         = false [owise] .
+
+    eq  isNullCell (MC) = MC == makeNullCell .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op pushValue  : MemorySegment Value  -> MemorySegment .
+    op pushValues : MemorySegment Values -> MemorySegment .
+    op popValue   : MemorySegment        -> MemorySegment .
+    op topValue   : MemorySegment        -> Value .
+    op nextIndex  : MemorySegment        -> Nat .
+    op topIndex   : MemorySegment        -> Nat .
+    op addIndex   : MemorySegment Nat    -> MemorySegment .
+
+    op getValue : MemorySegment Nat       -> Value .
+    op getCell  : MemorySegment Nat       -> MemoryCell .
+    op setCell  : MemorySegment Nat Value -> MemorySegment .
+
+    eq  pushValue  (@ms(MCS), V) = @ms($pushValue(MCS, V)) .
+    eq  pushValues (MS, nil)     = MS .
+    eq  pushValues (MS, V VS)    = pushValues(pushValue(MS, V), VS) .
+    eq  popValue   (@ms(MCS))    = @ms($popValue(MCS)) .
+    eq  topValue   (@ms(MCS))    = $topValue(MCS) .
+    eq  nextIndex  (@ms(MCS))    = $topIndex(MCS, 0) + 1 .
+    eq  topIndex   (@ms(MCS))    = $topIndex(MCS, 0) .
+    eq  addIndex   (@ms(MCS), N) = @ms($addIndex(MCS, N)) .
+
+    eq  getValue (MS, N)                          = getValue(getCell(MS, N)) .
+    ceq getCell  (@ms(MCS MC MCS2), N)            = MC if N == getPosition(MC) .
+    eq  getCell  (@ms(MCS), N)                    = makeNullCell [owise] .
+    eq  setCell  (@ms(MCS @mc(N, V) MCS2), N, V2) = @ms(MCS @mc(N, V2) MCS2) .
+    eq  setCell  (@ms(MCS), N, V2)                = @ms(MCS) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Private                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op $pushValue : MemoryCells Value -> MemoryCells .
+    op $popValue  : MemoryCells       -> MemoryCells .
+    op $topValue  : MemoryCells       -> Value .
+    op $topIndex  : MemoryCells Nat   -> Nat .
+    op $addIndex  : MemoryCells Nat   -> MemoryCells .
+
+    eq  $pushValue (nil, V)    = @mc(1, V) .
+    ceq $pushValue (MCS MC, V) = MCS MC @mc(N + 1, V)
+                                 if N := getPosition(MC) [owise] .
+
+    eq  $popValue (MCS MC) = MCS .
+    eq  $popValue (MCS)    = nil [owise] .
+
+    eq  $topValue (MCS MC) = getValue(MC) .
+    eq  $topValue (MCS)    = makeValue(nothing) [owise] .
+
+    ceq $topIndex (MC MCS, N) = if N2 > N then $topIndex(MCS, N2)
+                                else $topIndex(MCS, N) fi
+                                if N2 := getPosition(MC) .
+    eq  $topIndex (MCS, N)    = N [owise] .
+
+    ceq $addIndex (MCS, N)    = MCS
+                                if (MCS == nil) or (N == 0) .
+    ceq $addIndex (MC MCS, N) = setPosition(MC, N + N2) $addIndex(MCS, N)
+                                if N2 := getPosition(MC) [owise] .
+
+endfm)

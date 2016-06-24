@@ -1,0 +1,254 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Model Checking Transformer}
+%)
+
+*** |====================================================================================|
+*** | MCP Process                                                                        |
+*** |====================================================================================|
+
+---(%
+\subsection{mod MCTRANSFORMER}
+    This module represents a generic model checker transformation.
+%)
+(mod MCTRANSFORMER is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr RUNNER .
+    pr SATISFACTION .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    subsort Configuration < State .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Transformer                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op modelCheckTransformer  : State Formula                -> String .
+    op modelCheckTransformer  : State Formula Qids           -> String .
+    op $modelCheckTransformer : ModelCheckResult Qids        -> String .
+    op $modelCheckTransformer : TransitionList Qids          -> String .
+    op $modelCheckTransformer : Transition Transition Qids   -> String .
+    op $modelCheckTransformer : RuleName ProcessObject State -> String .
+
+    eq modelCheckTransformer (S:State, F:Formula) =
+        $modelCheckTransformer(
+            modelCheck(S:State, F:Formula),
+            'statement.init 'statement.work 'statement.exec 'statement.afcl
+            'statement.afam 'statement.error 'statement.next 'ambit.finish
+            'call.finish 'process.finish 'process.msg.add 'process.msg.get
+        ) .
+
+    eq modelCheckTransformer (S:State, F:Formula, Q:Qids) =
+        $modelCheckTransformer(modelCheck(S:State, F:Formula), Q:Qids) .
+
+    eq $modelCheckTransformer(true, Q:Qids) = "true" .
+    eq $modelCheckTransformer(false, Q:Qids) = "false" .
+    eq $modelCheckTransformer(R:ModelCheckResult, Q:Qids) =
+        "[" + $modelCheckTransformer(getTransitionLists(R:ModelCheckResult), Q:Qids) + "]" .
+
+    eq $modelCheckTransformer(T1:Transition T2:Transition L:TransitionList, Q:Qids) =
+        stringJoinSequence(
+            $modelCheckTransformer(T1:Transition, T2:Transition, Q:Qids),
+            $modelCheckTransformer(T2:Transition L:TransitionList, Q:Qids)
+        ) .
+    eq $modelCheckTransformer(L:TransitionList, Q:Qids) =
+        "" [owise] .
+
+    ceq  $modelCheckTransformer({ S1:State, R1:RuleName }, { S2:State, R2:RuleName }, Q:Qids) =
+        $modelCheckTransformer(R1:RuleName, PO:ProcessObject, S2:State)
+        if LQ:Qids R1:RuleName RQ:Qids := Q:Qids
+        /\ PO:ProcessObject := findLastChangedProcess(S1:State, S2:State)
+        /\ PO:ProcessObject =/= newEmptyProcess .
+    eq  $modelCheckTransformer({ S1:State, R1:RuleName }, { S2:State, R2:RuleName }, Q:Qids) =
+        "" [owise] .
+
+    eq $modelCheckTransformer (R:RuleName, PO:ProcessObject, S:State) =
+        "{" + makeStepField(R:RuleName) +
+        "," + makeNodeField(PO:ProcessObject) +
+        "," + makeProcessField(PO:ProcessObject) +
+        "," + makeProcessesField(S:State) +
+        "}" [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | JSON                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeProcessesField  : Configuration               -> String .
+    op $makeProcessesField : Configuration Configuration -> String .
+    op makeProcessObject   : ProcessObject Configuration -> String .
+    op makeVariablesField  : Variables ExecState         -> String .
+    op $makeVariablesField : Variables ExecState         -> String .
+    op makeVariablesObject : Variable ExecState          -> String .
+
+    op makeField          : String String        -> String .
+    op makeStringField    : String String        -> String .
+    op makeIntegerField   : String Int           -> String .
+    op makeStepField      : RuleName             -> String .
+    op $makeStepField     : RuleName             -> String .
+    op makeNodeField      : ProcessObject        -> String .
+    op makeProcessField   : ProcessObject        -> String .
+    op makeIndexField     : ProcessObject        -> String .
+    op makeNameField      : Qid                  -> String .
+    op makeValueField     : References ExecState -> String .
+    op makeValueField     : String Value         -> String .
+    op makeMessagesField  : ProcessObject        -> String .
+    op $makeMessagesField : Values               -> String .
+    op makeReturnField    : ProcessObject        -> String .
+
+    eq makeProcessesField (W:Configuration) =
+        makeField("processes", "[" + $makeProcessesField(W:Configuration, W:Configuration) + "]") .
+
+    eq $makeProcessesField (PO:ProcessObject C:Configuration, W:Configuration) =
+        stringJoinSequence(
+            makeProcessObject(PO:ProcessObject, W:Configuration),
+            $makeProcessesField(C:Configuration, W:Configuration)
+        ) .
+    eq $makeProcessesField (C:Configuration, W:Configuration) =
+        "" [owise] .
+
+    ceq makeProcessObject (PO:ProcessObject, W:Configuration) =
+        "{" + makeNodeField(PO:ProcessObject) +
+        "," + makeProcessField(PO:ProcessObject) +
+        "," + makeIndexField(PO:ProcessObject) +
+        "," + makeVariablesField(VS:Variables, ZX:ExecState) +
+        "," + makeMessagesField(PO:ProcessObject) +
+        "," + makeReturnField(PO:ProcessObject) +
+        "}"
+        if ZX:ExecState := makeExecState(PO:ProcessObject, W:Configuration)
+        /\ VS:Variables := getTopVariables(PO:ProcessObject) .
+
+    eq makeVariablesField (VS:Variables, ZX:ExecState) =
+        makeField("variables", "[" + $makeVariablesField(VS:Variables, ZX:ExecState) + "]") .
+
+    eq $makeVariablesField (V:Variable VS:Variables, ZX:ExecState) =
+        stringJoinSequence(
+            makeVariablesObject(V:Variable, ZX:ExecState),
+            $makeVariablesField(VS:Variables, ZX:ExecState)
+        ) .
+    eq $makeVariablesField (VS:Variables, ZX:ExecState) =
+        "" [owise] .
+
+    ceq makeVariablesObject (V:Variable, ZX:ExecState) =
+        "{" + makeNameField(Q:Qid) +
+        "," + makeValueField(RS:References, ZX:ExecState) +
+        "}"
+        if Q:Qid         := getName(V:Variable)
+        /\ RS:References := getRefs(V:Variable) .
+
+    eq makeField (S1:String, S2:String) =
+        stringInString(S1:String) + ":" +
+        if S2:String == "" then
+            "null"
+        else
+            S2:String
+        fi .
+
+    eq makeStringField (S1:String, S2:String) =
+        makeField(S1:String, stringInString(S2:String)).
+
+    eq makeIntegerField (S1:String, I2:Int) =
+        makeField(S1:String, string(I2:Int, 10)).
+
+    eq makeStepField (R:RuleName) =
+        makeStringField("step", $makeStepField(R:RuleName)) .
+
+    eq $makeStepField (Q:Qid)      = string(Q:Qid) .
+    eq $makeStepField (R:RuleName) = "unknown" [owise] .
+
+    eq makeNodeField (PO:ProcessObject) =
+        makeIntegerField("node", getNodeID(PO:ProcessObject)) .
+
+    eq makeProcessField (PO:ProcessObject) =
+        makeIntegerField("process", getProcessID(PO:ProcessObject)) .
+
+    ceq makeIndexField (PO:ProcessObject) =
+        makeIntegerField("index", getIndex(E:Expression))
+        if E:Expression := currentExpression(PO:ProcessObject) .
+
+    eq makeNameField (Q:Qid) =
+        makeStringField("name", string(Q:Qid)) .
+
+    ceq makeValueField (RS:References, ZX:ExecState) =
+        makeField("value", getValueAsString(V:Value))
+        if V:Value := getValue(ZX:ExecState, RS:References) .
+
+    ceq makeMessagesField (PO:ProcessObject) =
+        makeField("messages", "[" + $makeMessagesField(VS:Values) + "]")
+        if VS:Values := getMessages(PO:ProcessObject) .
+
+    eq $makeMessagesField (V:Value VS:Values) =
+        stringJoinSequence(
+            getValueAsString(V:Value),
+            $makeMessagesField(VS:Values)
+        ) .
+    eq $makeMessagesField (VS:Values) =
+        "" [owise] .
+
+    ceq makeReturnField (PO:ProcessObject) =
+        makeField("result", getValueAsString(V:Value))
+        if V:Value := getLastResult(PO:ProcessObject) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Utility                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op stringInString     : String           -> String .
+    op stringJoinSequence : String String    -> String .
+    op getTransitionLists : ModelCheckResult -> TransitionList .
+    op getValueAsString   : Value            -> String .
+
+    eq stringInString (S:String) =
+        "\"" + S:String + "\"" .
+
+    eq stringJoinSequence (S1:String, S2:String) =
+        if S1:String == "" then
+           S2:String
+        else if S2:String == "" then
+            S1:String
+        else
+            S1:String + "," + S2:String
+        fi fi .
+
+    eq getTransitionLists (counterexample(L1:TransitionList, L2:TransitionList)) =
+        L1:TransitionList L2:TransitionList .
+    eq getTransitionLists (R:ModelCheckResult) =
+        nil [owise] .
+
+    ceq getValueAsString (V:Value) =
+        stringInString(
+	        if (V:Value == makeGetValueError) or (S:String == "") then
+	            "null"
+	        else if isString(V:Value) then
+	            stringInString(S:String)
+	        else
+	            S:String
+	        fi fi
+        )
+        if S:String := toString(V:Value) .
+
+endm)

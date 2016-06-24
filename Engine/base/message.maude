@@ -1,0 +1,152 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Message}
+%)
+
+*** |====================================================================================|
+*** | Message                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{omod MESSAGE}
+    This object module represents a message between nodes in a machine.
+
+\paragraph{msg: @mg}
+    This operator represents a message sent between nodes.
+    \begin{itemize}
+    \item \textbf{mid:}
+        The message identificator number.
+    \item \textbf{opid:}
+        The origin process identificator.
+    \item \textbf{pid:}
+        The destination process identificator.
+    \item \textbf{data:}
+        The data of the message.
+    \end{itemize}
+%)
+(omod MESSAGE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr VALUE .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort Message .
+
+    subsort Message < Msg .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    msg @mg : NzNat Pid Pid Value -> Msg .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var MSG : Msg .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb MSG : Message if isMessage(MSG) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newMessage : NzNat NzNat NzNat Value             -> Message .
+    op newMessage : NzNat NzNat NzNat NzNat NzNat Value -> Message .
+    op newMessage : NzNat Pid Pid Value                 -> Message .
+
+    eq newMessage (M:NzNat, DN:NzNat, DP:NzNat, V:Value) =
+        @mg(M:NzNat, makePid, makePid(DN:NzNat, DP:NzNat), V:Value) .
+    eq newMessage (M:NzNat, ON:NzNat, OP:NzNat, DN:NzNat, DP:NzNat, V:Value) =
+        @mg(M:NzNat, makePid(ON:NzNat, OP:NzNat), makePid(DN:NzNat, DP:NzNat), V:Value) .
+    eq newMessage (M:NzNat, O:Pid, D:Pid, V:Value) =
+        @mg(M:NzNat, O:Pid, D:Pid, V:Value) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: Message                                                     |
+    *** |------------------------------------------------------------------------------|
+
+    op getMsgID   : Message -> NzNat .
+    op getOrigPID : Message -> Pid .
+    op getDestPID : Message -> Pid .
+    op getValue   : Message -> Value .
+
+    op setMsgID     : Message NzNat -> Message .
+    op setOrigPID    : Message Pid   -> Message .
+    op setDestPID : Message Pid   -> Message .
+    op setValue     : Message Value -> Message .
+
+    op getOrigNodeID    : Message -> Nat .
+    op getOrigProcessID : Message -> Nat .
+    op getDestNodeID    : Message -> Nat .
+    op getDestProcessID : Message -> Nat .
+
+    eq getMsgID   (@mg(M:NzNat, O:Pid, D:Pid, V:Value)) = M:NzNat .
+    eq getOrigPID (@mg(M:NzNat, O:Pid, D:Pid, V:Value)) = D:Pid .
+    eq getDestPID (@mg(M:NzNat, O:Pid, D:Pid, V:Value)) = D:Pid .
+    eq getValue   (@mg(M:NzNat, O:Pid, D:Pid, V:Value)) = V:Value .
+
+    eq setMsgID   (@mg(M:NzNat,  O:Pid,  D:Pid,  V:Value), M2:NzNat) =
+                   @mg(M2:NzNat, O:Pid,  D:Pid,  V:Value) .
+    eq setOrigPID (@mg(M:NzNat,  O:Pid,  D:Pid,  V:Value), O2:Pid) =
+                   @mg(M:NzNat,  O2:Pid, D:Pid,  V:Value) .
+    eq setDestPID (@mg(M:NzNat,  O:Pid,  D:Pid,  V:Value), D2:Pid) =
+                   @mg(M:NzNat,  O:Pid,  D2:Pid, V:Value) .
+    eq setValue   (@mg(M:NzNat,  O:Pid,  D:Pid,  V:Value), V2:Value) =
+                   @mg(M:NzNat,  O:Pid,  D:Pid,  V2:Value) .
+
+    eq getOrigNodeID    (M:Message) = getNode(getOrigPID(M:Message)) .
+    eq getOrigProcessID (M:Message) = getProcess(getOrigPID(M:Message)) .
+    eq getDestNodeID    (M:Message) = getNode(getDestPID(M:Message)) .
+    eq getDestProcessID (M:Message) = getProcess(getDestPID(M:Message)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isMessage : Msg -> Bool .
+
+    op isOlder    : Message Message -> Bool .
+    op isNewer    : Message Message -> Bool .
+    op isSameDest : Message Message -> Bool .
+    op isSameOrig : Message Message -> Bool .
+    op isSameDest : Message Message -> Bool .
+
+    eq isMessage (@mg(M:NzNat, O:Pid, D:Pid, V:Value)) = true .
+    eq isMessage (MSG) = false [owise] .
+
+    eq isOlder (M1:Message, M2:Message) = getMsgID(M1:Message) < getMsgID(M2:Message) .
+    eq isNewer (M1:Message, M2:Message) = getMsgID(M1:Message) > getMsgID(M2:Message) .
+
+    eq isSameOrig (M1:Message, M2:Message) = getOrigPID(M1:Message) == getOrigPID(M2:Message) .
+    eq isSameDest (M1:Message, M2:Message) = getDestPID(M1:Message) == getDestPID(M2:Message) .
+
+endom)

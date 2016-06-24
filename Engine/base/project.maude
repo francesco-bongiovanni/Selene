@@ -1,0 +1,271 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Project}
+%)
+
+*** |====================================================================================|
+*** | Project                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{omod PROJECT}
+    This object module represents a project with a program.
+
+\paragraph{class Project}
+    This class represents a project with the program's source code.
+    \begin{itemize}
+    \item \textbf{files:}
+        The files with the source code.
+    \end{itemize}
+
+\paragraph{SourceFile}
+    This operator represents a source file inside a project.
+    \begin{itemize}
+    \item \textbf{file:}
+        The path inside the project of the source file.
+    \item \textbf{text:}
+        The source code text content.
+    \item \textbf{lines:}
+        The number of lines of the source code.
+    \end{itemize}
+
+\paragraph{SourceLine}
+    This operator represents a line inside a source file.
+    \begin{itemize}
+    \item \textbf{file:}
+        The path inside the project of the source file.
+    \item \textbf{line:}
+        The current line inside the source code file.
+    \end{itemize}
+%)
+(omod PROJECT is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr STRING .
+    pr VIEW-TYPES .
+    pr UTILITY .
+
+    pr LIST2{InputFile}  * (sort List{InputFile}  to InputFiles) .
+    pr LIST2{SourceFile} * (sort List{SourceFile} to SourceFiles) .
+    pr LIST2{SourceLine} * (sort List{SourceLine} to SourceLines) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort ProjectObject .
+
+    subsort ProjectObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class Project | files : SourceFiles .
+
+    op `{_`,_`} : String String -> InputFile [ctor] .
+
+    op @sf : String String Nat -> SourceFile [ctor] .
+    op @sl : String Nat        -> SourceLine [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var O   : Oid .
+    var IF  : InputFile .
+    var IFL : InputFiles .
+    var SFL : SourceFiles .
+    var PJO : ProjectObject .
+    var CFG : Configuration .
+    var OBJ : Object .
+
+    vars I  C   : Nat .
+    vars SF SF2 : SourceFile .
+    vars SL SL2 : SourceLine .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : ProjectObject if isProject(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newProject :     InputFiles  -> Object .
+    op newProject : Oid InputFiles  -> Object .
+    op newProject :     SourceFiles -> Object .
+    op newProject : Oid SourceFiles -> Object .
+
+    op makeInputFile  : String String     -> InputFile .
+    op makeSourceFile : String String Nat -> SourceFile .
+    op makeSourceLine : String Nat        -> SourceLine .
+    op makeNullLine   :                   -> SourceLine .
+
+    eq newProject (IFL)    = newProject ('project, inputToSourceFiles(IFL)) .
+    eq newProject (O, IFL) = newProject (O, inputToSourceFiles(IFL)) .
+    eq newProject (SFL)    = newProject ('project, SFL) .
+    eq newProject (O, SFL) = < O : Project | files : SFL > .
+
+    eq makeInputFile  (F:String, T:String)        = { F:String, T:String } .
+    eq makeSourceFile (F:String, T:String, L:Nat) = @sf(F:String, T:String, L:Nat) .
+    eq makeSourceLine (F:String, L:Nat)           = @sl(F:String, L:Nat) .
+    eq makeNullLine                               = @sl("", 0) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: ProjectObject                                               |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid   : ProjectObject -> Oid .
+    op getFiles : ProjectObject -> SourceFiles .
+
+    eq getOid   (< O : Project | files : SFL >) = O .
+    eq getFiles (< O : Project | files : SFL >) = SFL .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: InputFile                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op getFile  : InputFile -> String .
+    op getText  : InputFile -> String .
+
+    eq getFile ({ F:String, T:String }) = F:String .
+    eq getText ({ F:String, T:String }) = T:String .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: SourceFile                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op getFile  : SourceFile -> String .
+    op getText  : SourceFile -> String .
+    op getLines : SourceFile -> Nat .
+
+    eq getFile  (@sf(F:String, T:String, L:Nat)) = F:String .
+    eq getText  (@sf(F:String, T:String, L:Nat)) = T:String .
+    eq getLines (@sf(F:String, T:String, L:Nat)) = L:Nat .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters: SourceLine                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op getFile : SourceLine -> String .
+    op getLine : SourceLine -> Nat .
+
+    eq getFile (@sl(F:String, L:Nat)) = F:String .
+    eq getLine (@sl(F:String, L:Nat)) = L:Nat .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isProject : Object -> Bool .
+
+    op sameFile : SourceLine SourceLine -> Bool .
+    op sameFile : SourceLine SourceFile -> Bool .
+    op sameFile : SourceFile SourceLine -> Bool .
+    op sameFile : SourceFile SourceFile -> Bool .
+
+    eq isProject (< O : Project | files : SFL >) = true .
+    eq isProject (OBJ) = false [owise] .
+
+    eq sameFile (SL, SL2) = (getFile(SL) == getFile(SL2)) .
+    eq sameFile (SL, SF2) = (getFile(SL) == getFile(SF2)) .
+    eq sameFile (SF, SL2) = (getFile(SF) == getFile(SL2)) .
+    eq sameFile (SF, SF2) = (getFile(SF) == getFile(SF2)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Conversion                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op findLineToIndex : Configuration SourceLine -> Nat .
+    op findIndexToLine : Configuration Nat        -> SourceLine .
+
+    op lineToIndex : ProjectObject SourceLine -> Nat .
+    op lineToIndex : SourceFiles   SourceLine -> Nat .
+
+    op indexToLine : ProjectObject Nat        -> SourceLine .
+    op indexToLine : SourceFiles   Nat        -> SourceLine .
+
+    op inputToSourceFiles : InputFiles -> SourceFiles .
+
+    op getLines : String -> Nat .
+
+    eq findLineToIndex (PJO CFG, SL) = lineToIndex(getFiles(PJO), SL) .
+    eq findLineToIndex (CFG, SL)     = 0 [owise].
+
+    eq findIndexToLine (PJO CFG, I) = indexToLine(getFiles(PJO), I) .
+    eq findIndexToLine (CFG, I)     = makeNullLine [owise] .
+
+    eq lineToIndex (PJO, SL) = lineToIndex(getFiles(PJO), SL) .
+    eq lineToIndex (SFL, SL) = $lineToIndex(SFL, SL, 0) .
+
+    eq indexToLine (PJO, I)    = indexToLine(getFiles(PJO), I) .
+    eq indexToLine (SF SFL, I) = if I <= 0 then
+                                     makeNullLine
+                                 else if I > getLines(SF) then
+                                     indexToLine(SFL, sd(I, getLines(SF)))
+                                 else
+                                     makeSourceLine(getFile(SF), I)
+                                 fi fi .
+    eq indexToLine (SFL, I)    = makeNullLine [owise] .
+
+    ceq inputToSourceFiles (IF IFL) = makeSourceFile(F:String, T:String, L:Nat)
+                                      inputToSourceFiles(IFL)
+                                      if F:String := getFile(IF)
+                                      /\ T:String := getText(IF)
+                                      /\ L:Nat    := getLines(T:String) .
+    eq  inputToSourceFiles (IFL)    = nil [owise] .
+
+    eq getLines (T:String) = $getLines(T:String, 0, 1) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Private                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op $lineToIndex : SourceFiles SourceLine Nat -> Nat .
+    op $getLines    : String Nat Nat             -> Nat .
+
+    eq $lineToIndex (SF SFL, SL, C) = if getLine(SL) <= 0 then
+                                          0
+                                      else if not sameFile(SF, SL) then
+                                          $lineToIndex(SFL, SL, C + getLines(SF))
+                                      else if getLine(SL) <= getLines(SF) then
+                                          C + getLine(SL)
+                                      else
+                                          0
+                                      fi fi fi .
+    eq $lineToIndex (SFL, SL, C)    = 0 [owise] .
+
+    eq $getLines (T:String, I:Nat, C:Nat) =
+        if I:Nat < length(T:String) then
+            if substr(T:String, I:Nat, 1) == "\n" then
+                $getLines(T:String, s(I:Nat), s(C:Nat))
+            else
+                $getLines(T:String, s(I:Nat), C:Nat)
+            fi
+        else
+            C:Nat
+        fi .
+
+endom)

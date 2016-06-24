@@ -1,0 +1,631 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Machine}
+%)
+
+*** |====================================================================================|
+*** | Machine                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{mod MACHINE}
+    This module represents the whole world machine, where the programs will be
+    executed. To make this possible we'll use a set of nodes and a set of messages
+    to communicate between nodes.
+%)
+(mod MACHINE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr MESSAGE .
+    pr STARTCALL .
+    pr CONFIG .
+    pr STATUS .
+    pr NODE .
+    pr PROCESS .
+    pr TEMPORAL .
+    pr EXECUTION .
+    pr TYPES .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Virtual/Abstract                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    op parse : InputFiles -> Expressions .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Oid: Check                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op sameId : Oid           Nat -> Bool .
+    op sameId : NodeObject    Nat -> Bool .
+    op sameId : ProcessObject Nat -> Bool .
+    op sameId : NodeObject    Oid -> Bool .
+    op sameId : ProcessObject Oid -> Bool .
+
+    eq sameId (V:Oid,           N:Nat) = makeID(N:Nat) == V:Oid .
+    eq sameId (V:NodeObject,    N:Nat) = makeID(N:Nat) == getOid(V:NodeObject) .
+    eq sameId (V:ProcessObject, N:Nat) = makeID(N:Nat) == getOid(V:ProcessObject) .
+    eq sameId (V:NodeObject,    O:Oid) = O:Oid         == getOid(V:NodeObject) .
+    eq sameId (V:ProcessObject, O:Oid) = O:Oid         == getOid(V:ProcessObject) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | References: Make                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    op makeVariables  : Expressions Values Bool ExecState     -> Variables .
+    op $makeVariables : Expressions Values Nat Bool ExecState -> Variables .
+    op $makeVariable  : Expression Values Nat Bool ExecState  -> Variables .
+
+    op $makeVarFromLiteral : LiteralExpression Nat Bool ExecState -> Variables .
+
+    eq makeVariables (PS:Expressions, VS:Values, CC:Bool, ZX:ExecState) =
+        $makeVariables(PS:Expressions, VS:Values, 0, CC:Bool, ZX:ExecState) .
+
+    eq $makeVariables (nil, VS:Values, I:Nat, CC:Bool, ZX:ExecState) =
+        nil .
+    eq $makeVariables (E:Expression PS:Expressions, VS:Values, I:Nat, CC:Bool, ZX:ExecState) =
+        $makeVariable(E:Expression, VS:Values, I:Nat, CC:Bool, ZX:ExecState)
+        $makeVariables(PS:Expressions, VS:Values, s(I:Nat), CC:Bool, ZX:ExecState) [owise] .
+
+    ---TODO: Complete other pattern matching expressions in the make variable operation...
+    ceq $makeVariable (LE:LiteralExpression, VS:Values, I:Nat, CC:Bool, ZX:ExecState) =
+        $makeVarFromLiteral(LE:LiteralExpression, I:Nat, CC:Bool, ZX:ExecState)
+        if I:Nat < size(VS:Values) .
+    eq $makeVariable (E:Expression, VS:Values, I:Nat, CC:Bool, ZX:ExecState) =
+        nil [owise] .
+    ---...
+
+    ceq $makeVarFromLiteral (LE:LiteralExpression, I:Nat, CC:Bool, ZX:ExecState) =
+        if CC:Bool and (V:Value =/= makeGetValueError) then
+            nil
+        else
+	        makeVariable(
+	            S:Qid,
+	            makeStackReference(
+	                topIndex(ZX:ExecState) + s(I:Nat),
+	                getNode(ZX:ExecState),
+	                getProcess(ZX:ExecState)
+	            )
+	        )
+        fi
+        if isSymbolVariable(LE:LiteralExpression)
+        /\ S:Qid   := getSymbol(LE:LiteralExpression)
+        /\ V:Value := getValue(ZX:ExecState, S:Qid) .
+    eq $makeVarFromLiteral (LE:LiteralExpression, I:Nat, CC:Bool, ZX:ExecState) =
+        nil [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Context: Make                                                                |
+    *** |------------------------------------------------------------------------------|
+
+    op addAmbit     : Expressions Values Bool ExecState   -> ContextStack .
+    op makeAmbit    : Expressions Values Bool ExecState   -> Ambit .
+    op addContext   : FunctionExpression Values ExecState -> ContextStack .
+    op makeContext  : FunctionExpression Values ExecState -> Context .
+    op makeContext  : ClauseExpression Values ExecState   -> Context .
+    op $makeContext : Expressions Values ExecState        -> Context .
+
+    ceq addAmbit (ES:Expressions, VS:Values, CC:Bool, ZX:ExecState) =
+        if A:Ambit == makeInvalidAmbit then
+            setLastResult(CS:ContextStack, makeClauseError)
+        else
+            C3:ContextStack
+        fi
+        if A:Ambit         := makeAmbit(ES:Expressions, VS:Values, CC:Bool, ZX:ExecState)
+        /\ CS:ContextStack := getContextStack(ZX:ExecState)
+        /\ C2:ContextStack := pushAmbit(CS:ContextStack, A:Ambit)
+        /\ C3:ContextStack := pushValues(C2:ContextStack, VS:Values) .
+
+    eq makeAmbit (nil, VS:Values, CC:Bool, ZX:ExecState) =
+        makeInvalidAmbit .
+    ceq makeAmbit (CE:ClauseExpression ES:Expressions, VS:Values, CC:Bool, ZX:ExecState) =
+        if checkClause(CE:ClauseExpression, VS:Values, CC:Bool, ZX:ExecState) then
+            makeAmbit(BD:Expressions, VA:Variables)
+        else
+            makeAmbit(ES:Expressions, VS:Values, CC:Bool, ZX:ExecState)
+        fi
+        if PS:Expressions := getPattern(CE:ClauseExpression)
+        /\ BD:Expressions := getBody(CE:ClauseExpression)
+        /\ VA:Variables   := makeVariables(PS:Expressions, VS:Values, CC:Bool, ZX:ExecState) .
+    eq makeAmbit (E:Expression ES:Expressions, VS:Values, CC:Bool, ZX:ExecState) =
+        makeAmbit(ES:Expressions, VS:Values, CC:Bool, ZX:ExecState) [owise] .
+
+    ceq addContext (FE:FunctionExpression, VS:Values, ZX:ExecState) =
+        pushContext(CS:ContextStack, C:Context)
+        if C:Context       := makeContext(FE:FunctionExpression, VS:Values, ZX:ExecState)
+        /\ CS:ContextStack := getContextStack(ZX:ExecState) .
+
+    eq makeContext (FE:FunctionExpression, VS:Values, ZX:ExecState) =
+        $makeContext(getClauses(FE:FunctionExpression), VS:Values, ZX:ExecState) .
+
+    eq makeContext (CE:ClauseExpression, VS:Values, ZX:ExecState) =
+        $makeContext(CE:ClauseExpression, VS:Values, ZX:ExecState) .
+
+    eq $makeContext (nil, VS:Values, ZX:ExecState) =
+        makeContext(@ClauseError) .
+    ceq $makeContext (CE:ClauseExpression ES:Expressions, VS:Values, ZX:ExecState) =
+        if checkClause(CE:ClauseExpression, VS:Values, false, ZX:ExecState) then
+            makeAmbitAndContext(F:Qids, BD:Expressions, VA:Variables, VS:Values)
+        else
+            $makeContext(ES:Expressions, VS:Values, ZX:ExecState)
+        fi
+        if PS:Expressions := getPattern(CE:ClauseExpression)
+        /\ BD:Expressions := getBody(CE:ClauseExpression)
+        /\ VA:Variables   := makeVariables(PS:Expressions, VS:Values, false, ZX:ExecState)
+        /\ F:Qids         := getFunction(ZX:ExecState) .
+    eq $makeContext (E:Expression ES:Expressions, VS:Values, ZX:ExecState) =
+        $makeContext(ES:Expressions, VS:Values, ZX:ExecState) [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: Check                                                           |
+    *** |------------------------------------------------------------------------------|
+
+    op isCall : Qid Expression     -> Bool .
+    op isCall : Qid Nat Expression -> Bool .
+
+    op checkClause      : ClauseExpression Values Bool ExecState      -> Bool .
+    op checkParameters  : Expressions Values Bool ExecState           -> Bool .
+    op $checkParameters : Expressions Values Bool ExecState           -> Bool .
+    op $checkParameter  : Expression Value Bool ExecState             -> Bool .
+    op checkConditions  : Expressions Variables Values Bool ExecState -> Bool .
+    op checkVarMatch    : Qid Value ExecState                         -> Bool .
+
+    ceq isCall (S:Qid, BOE:BOperationExpression) =
+        true
+        if @call := getSymbol(BOE:BOperationExpression)
+        /\ S:Qid == getSymbol(getLHS(BOE:BOperationExpression)) .
+    eq isCall (S:Qid, E:Expression) =
+        false [owise] .
+
+    ceq isCall (S:Qid, N:Nat, BOE:BOperationExpression) =
+        size(ES:Expressions) == N:Nat
+        if isCall(S:Qid, BOE:BOperationExpression)
+        /\ SE:SequenceExpression := getRHS(BOE:BOperationExpression)
+        /\ ES:Expressions        := getExpressions(SE:SequenceExpression) .
+    eq isCall (S:Qid, N:Nat, E:Expression) =
+        false [owise] .
+
+    ceq checkClause (CE:ClauseExpression, VS:Values, CC:Bool, ZX:ExecState) =
+        if checkParameters(PS:Expressions, VS:Values, CC:Bool, ZX:ExecState) then
+            checkConditions(CS:Expressions, VA:Variables, VS:Values, CC:Bool, ZX:ExecState)
+        else
+            false
+        fi
+        if PS:Expressions := getPattern(CE:ClauseExpression)
+        /\ CS:Expressions := getGuard(CE:ClauseExpression)
+        /\ VA:Variables   := makeVariables(PS:Expressions, VS:Values, CC:Bool, ZX:ExecState) .
+
+    eq checkParameters (PS:Expressions, VS:Values, CC:Bool, ZX:ExecState) =
+        if (PS:Expressions == nil) and (VS:Values == nil) then
+            true
+        else if (PS:Expressions == nil) or (VS:Values == nil) or
+                (size(PS:Expressions) =/= size(VS:Values)) then
+            false
+        else
+            $checkParameters(PS:Expressions, VS:Values, CC:Bool, ZX:ExecState)
+        fi fi .
+
+    eq $checkParameters (nil, nil, CC:Bool, ZX:ExecState) =
+        true .
+    eq $checkParameters (E:Expression PS:Expressions, V:Value VS:Values, CC:Bool, ZX:ExecState) =
+        if $checkParameter (E:Expression, V:Value, CC:Bool, ZX:ExecState) then
+            $checkParameters(PS:Expressions, VS:Values, CC:Bool, ZX:ExecState)
+        else
+            false
+        fi .
+
+    ---TODO: Complete other pattern matching expressions in the check parameter operation...
+    eq $checkParameter (LE:LiteralExpression, V:Value, CC:Bool, ZX:ExecState) =
+        if isSymbolVariable(LE:LiteralExpression) then
+            if CC:Bool then
+                checkVarMatch(getSymbol(LE:LiteralExpression), V:Value, ZX:ExecState)
+            else
+                true
+            fi
+        else
+            V:Value == toValue(LE:LiteralExpression)
+        fi .
+    eq $checkParameter (E:Expression, V:Value, CC:Bool, ZX:ExecState) =
+        false [owise] .
+    ---...
+
+    ---TODO: Complete the check conditions operation...
+    eq checkConditions (CS:Expressions, VA:Variables, VS:Values, CC:Bool, ZX:ExecState) =
+        true .
+    ---...
+
+    ceq checkVarMatch (S:Qid, V1:Value, ZX:ExecState) =
+        if V2:Value == makeGetValueError then
+            true
+        else
+            V1:Value == V2:Value
+        fi
+        if V2:Value := getValue(ZX:ExecState, S:Qid) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Expressions: Manipulation                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    op findExpression : Qids Configuration -> Expressions .
+    op findExpression : Qids Expressions   -> Expressions .
+    op hasNamespace   : Qid Expressions    -> Bool .
+    op hasFunction    : Qid Expressions    -> Bool .
+    op getNamespace   : Qid Expressions    ~> Expressions .
+    op getFunction    : Qid Expressions    ~> Expressions .
+
+    eq findExpression (FN:Qids, SO:StatusObject W:Configuration) =
+        findExpression(FN:Qids, getProgram(SO:StatusObject)) .
+    eq findExpression (FN:Qids, W:Configuration) =
+        nil [owise] .
+
+    eq findExpression (nil, PR:Expressions) =
+        PR:Expressions .
+    eq findExpression (S:Qid, PR:Expressions) =
+        if hasFunction(S:Qid, PR:Expressions) then
+            getFunction(S:Qid, PR:Expressions)
+        else if hasNamespace(S:Qid, PR:Expressions) then
+            getNamespace(S:Qid, PR:Expressions)
+        else
+            nil
+        fi fi .
+    eq findExpression (S:Qid FN:Qids, PR:Expressions) =
+        if hasNamespace(S:Qid, PR:Expressions) then
+            findExpression(FN:Qids, getDefs(getNamespace(S:Qid, PR:Expressions)))
+        else
+            nil
+        fi [owise] .
+
+    ceq hasNamespace (S:Qid, LS:Expressions NE:NamespaceExpression RS:Expressions) =
+        true
+        if S:Qid == getSymbol(NE:NamespaceExpression) .
+    eq hasNamespace (S:Qid, ES:Expressions) =
+        false [owise] .
+
+    ceq hasFunction (S:Qid, LS:Expressions FE:FunctionExpression RS:Expressions) =
+        true
+        if S:Qid == getSymbol(FE:FunctionExpression) .
+    eq hasFunction (S:Qid, ES:Expressions) =
+        false [owise] .
+
+    ceq getNamespace (S:Qid, LS:Expressions NE:NamespaceExpression RS:Expressions) =
+        NE:NamespaceExpression
+        if S:Qid == getSymbol(NE:NamespaceExpression) .
+
+    ceq getFunction (S:Qid, LS:Expressions FE:FunctionExpression RS:Expressions) =
+        FE:FunctionExpression
+        if S:Qid == getSymbol(FE:FunctionExpression) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Start Calls                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    op filterNoStartCalls : Configuration -> Configuration .
+    op $filterNoStartCall : Object        -> Configuration .
+
+    eq filterNoStartCalls (none) =
+        none .
+    eq filterNoStartCalls (O:Object NX:Configuration) =
+        $filterNoStartCall(O:Object) filterNoStartCalls(NX:Configuration) [owise] .
+
+    eq $filterNoStartCall (O:Object) =
+        if O:Object :: StartCallObject then
+            O:Object
+        else
+            none
+        fi .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Config                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op findConfig          : Configuration ~> ConfigObject .
+    op filterConfigObjects : Configuration -> Configuration .
+    op $filterConfigObject : Object        -> Configuration .
+    op getOnlyStartCalls   : ConfigObject  -> Configuration .
+
+    eq findConfig (CO:ConfigObject NX:Configuration) =
+        CO:ConfigObject .
+
+    eq filterConfigObjects (none) =
+        none .
+    eq filterConfigObjects (O:Object NX:Configuration) =
+        $filterConfigObject(O:Object) filterConfigObjects(NX:Configuration) [owise] .
+
+    eq $filterConfigObject (O:Object) =
+        if O:Object :: ConfigObject then
+            none
+        else
+            O:Object
+        fi .
+
+    eq getOnlyStartCalls (CO:ConfigObject) =
+        filterNoStartCalls(getStartCalls(CO:ConfigObject)) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Project                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op makeProject : Configuration -> Configuration .
+    op findProject : Configuration ~> ProjectObject .
+
+    eq makeProject (CO:ConfigObject W:Configuration) =
+        newProject(getProject(CO:ConfigObject)) CO:ConfigObject W:Configuration .
+    eq makeProject (W:Configuration) =
+        W:Configuration [owise] .
+
+    eq findProject (PO:ProjectObject NX:Configuration) =
+        PO:ProjectObject .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Status                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op makeStatus   : Configuration       -> Configuration .
+    op $makeStatus  : ConfigObject        -> StatusObject .
+    op findStatus   : Configuration       ~> StatusObject .
+    op getNextIndex : Configuration       -> NzNat .
+    op setNextIndex : Configuration NzNat -> Configuration .
+
+    eq makeStatus (CO:ConfigObject) =
+        CO:ConfigObject $makeStatus(CO:ConfigObject) .
+    ceq makeStatus (CO:ConfigObject SO:StatusObject) =
+        if P:Expressions =/= nil then
+            CO:ConfigObject setProgram(S:StatusObject, P:Expressions)
+        else
+            CO:ConfigObject S:StatusObject
+        fi
+        if P:Expressions  := getProgram(SO:StatusObject)
+        /\ S:StatusObject := $makeStatus(CO:ConfigObject) .
+
+    eq $makeStatus (CO:ConfigObject) =
+        newStatus(parse(getProject(CO:ConfigObject)), 1) .
+
+    eq findStatus (SO:StatusObject NX:Configuration) =
+        SO:StatusObject .
+
+    eq getNextIndex (SO:StatusObject NX:Configuration) =
+        getNextIndex(SO:StatusObject) .
+
+    eq setNextIndex (SO:StatusObject NX:Configuration, I:NzNat) =
+        setNextIndex(SO:StatusObject, I:NzNat) NX:Configuration .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Node                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeNodes  : Configuration           -> Configuration .
+    op $makeNodes : Configuration Nat       -> Configuration .
+    op findNode   : NzNat Configuration      ~> NodeObject .
+    op print      : String ExecState         -> Configuration .
+    op print      : Oid String Configuration -> Configuration .
+    ---op read : Oid String Configuration -> Configuration .
+
+    ceq makeNodes (W:Configuration) =
+        $makeNodes(W:Configuration, getNodes(CO:ConfigObject))
+        if CO:ConfigObject := findConfig(W:Configuration) .
+
+    eq $makeNodes (W:Configuration, N:Nat) =
+        if N:Nat > 0 then
+            newNode(N:Nat, none)
+            $makeNodes(W:Configuration, sd(N:Nat, 1))
+        else
+            W:Configuration
+        fi .
+
+    ceq findNode (N:NzNat, NO:NodeObject NX:Configuration) =
+        NO:NodeObject
+        if sameId(NO:NodeObject, N:NzNat) .
+
+    eq print (S:String, ZX:ExecState) =
+        print(getOwner(getProcessObject(ZX:ExecState)),
+              S:String, getWorld(ZX:ExecState)) .
+
+    ceq print (O:Oid, S:String, NO:NodeObject W:Configuration) =
+        setCout(NO:NodeObject, B:String + S:String) W:Configuration
+        if sameId(NO:NodeObject, O:Oid)
+        /\ B:String := getCout(NO:NodeObject)
+        [print "[Node: " O:Oid "] => " S:String] .
+    eq print (O:Oid, S:String, W:Configuration) =
+        W:Configuration [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Process: Make                                                                |
+    *** |------------------------------------------------------------------------------|
+
+    op makeProcesses  : Configuration                         -> Configuration .
+    op $makeProcesses : Configuration Configuration           -> Configuration .
+    op startProcess   : NzNat Qids Values Configuration       -> Configuration .
+    op startProcess   : NzNat NzNat Qids Values Configuration -> Configuration .
+    op startProcess   : FunctionExpression Values ExecState   -> Configuration .
+
+    ceq makeProcesses (W:Configuration) =
+        $makeProcesses(W:Configuration, SC:Configuration)
+        if CO:ConfigObject  := findConfig(W:Configuration)
+        /\ SC:Configuration := getOnlyStartCalls(CO:ConfigObject) .
+
+    eq $makeProcesses (W:Configuration, none) =
+        W:Configuration .
+    ceq $makeProcesses (W:Configuration, SCO:StartCallObject NX:Configuration) =
+        $makeProcesses(W2:Configuration, NX:Configuration)
+        if CN:NzNat         := getNode(SCO:StartCallObject)
+        /\ CF:Qids          := getFunction(SCO:StartCallObject)
+        /\ CV:Values        := getParams(SCO:StartCallObject)
+        /\ W2:Configuration := startProcess(CN:NzNat, CF:Qids, CV:Values, W:Configuration) .
+
+    ceq startProcess (N:NzNat, F:Qids, V:Values, W:Configuration) =
+        startProcess(P:NzNat, N:NzNat, F:Qids, V:Values, W2:Configuration)
+        if P:NzNat          := getNextIndex(W:Configuration)
+        /\ W2:Configuration := setNextIndex(W:Configuration, s(P:NzNat)) .
+
+    ceq startProcess (P:NzNat, N:NzNat, F:Qids, V:Values, W:Configuration) =
+        if E:Expressions :: FunctionExpression then
+            startProcess(E:Expressions, V:Values, ZX:ExecState)
+        else
+            W:Configuration
+        fi
+        if E:Expressions := findExpression(F:Qids, W:Configuration)
+        /\ ZX:ExecState  := makeExecState(W:Configuration, N:NzNat, P:NzNat, F:Qids) .
+
+    ceq startProcess (F:FunctionExpression, V:Values, ZX:ExecState) =
+        if hasError(CX:Context) then
+            W:Configuration
+        else
+            W:Configuration newProcess(P:NzNat, N:NzNat, CX:Context)
+        fi
+        if CX:Context      := makeContext(F:FunctionExpression, V:Values, ZX:ExecState)
+        /\ W:Configuration := getWorld(ZX:ExecState)
+        /\ P:NzNat         := getProcess(ZX:ExecState)
+        /\ N:NzNat         := getNode(ZX:ExecState) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Process: Find                                                                |
+    *** |------------------------------------------------------------------------------|
+
+    op findProcess            : ExecState                   -> Configuration .
+    op findProcess            : NzNat NzNat ExecState       -> Configuration .
+    op findProcess            : NzNat NzNat Configuration   -> ProcessObject .
+    op findNewProcess         : Configuration Configuration -> ProcessObject .
+    op findNewProcessID       : Configuration Configuration -> Nat .
+    op findLastChangedProcess : Configuration Configuration -> ProcessObject .
+
+    eq findProcess (ZX:ExecState) =
+        findProcess(getNode(ZX:ExecState), getProcess(ZX:ExecState), ZX:ExecState) .
+
+    eq findProcess (N:NzNat, P:NzNat, ZX:ExecState) =
+        findProcess(N:NzNat, P:NzNat, getWorld(ZX:ExecState)) .
+
+    ceq findProcess (N:NzNat, P:NzNat, PO:ProcessObject NX:Configuration) =
+        PO:ProcessObject
+        if sameId(PO:ProcessObject, P:NzNat)
+        /\ sameId(getOwner(PO:ProcessObject), N:NzNat) .
+
+    ceq findNewProcess (W1:Configuration, W2:Configuration) =
+        PO:ProcessObject
+        if PO:ProcessObject W1:Configuration := W2:Configuration .
+    eq findNewProcess (W1:Configuration, W2:Configuration) =
+        newEmptyProcess [owise] .
+
+    ceq findNewProcessID (W1:Configuration, W2:Configuration) =
+        N:Nat
+        if PO:ProcessObject := findNewProcess(W1:Configuration, W2:Configuration)
+        /\ N:Nat            := getProcessID(PO:ProcessObject) .
+    eq findNewProcessID (W1:Configuration, W2:Configuration) =
+        0 [owise] .
+
+    ceq findLastChangedProcess (P1:ProcessObject W1:Configuration, P2:ProcessObject W2:Configuration) =
+        P2:ProcessObject
+        if anyExecutionChange(P1:ProcessObject, P2:ProcessObject) .
+    eq findLastChangedProcess (W1:Configuration, W2:Configuration) =
+        newEmptyProcess [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Process: Function Calls                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op invokeFunction       : ExecState FunctionInfo Values                -> ExecState .
+    op invokeStaticFunction : ExecState FunctionExpression Values          -> ExecState .
+    op invokeLambdaFunction : ExecState FunctionExpression Closures Values -> ExecState .
+    op invokeObjectFunction : ExecState FunctionExpression Closures Values -> ExecState .
+
+    ceq invokeFunction (ZX:ExecState, FI:FunctionInfo, VS:Values) =
+        (if E:Expressions :: FunctionExpression then
+	        if FT:FunctionType == @StaticFunction then
+	            invokeStaticFunction(Z3:ExecState, E:Expressions, VS:Values)
+	        else if FT:FunctionType == @LambdaFunction then
+	            invokeLambdaFunction(Z3:ExecState, E:Expressions, FC:Closures, VS:Values)
+	        else if FT:FunctionType == @ObjectFunction then
+	            invokeObjectFunction(Z3:ExecState, E:Expressions, FC:Closures, VS:Values)
+	        else
+	            setExecResult(ZX:ExecState, makeGetFunctionError)
+	        fi fi fi
+        else
+            setExecResult(ZX:ExecState, makeGetFunctionError)
+        fi)
+        if FP:Qids         := getFuncPath(FI:FunctionInfo)
+        /\ FT:FunctionType := getFuncType(FI:FunctionInfo)
+        /\ FC:Closures     := getClosures(FI:FunctionInfo)
+        /\ W:Configuration := getWorld(ZX:ExecState)
+        /\ E:Expressions   := findExpression(FP:Qids, W:Configuration)
+        /\ Z2:ExecState    := setFunction(ZX:ExecState, FP:Qids)
+        /\ Z3:ExecState    := setTopState(Z2:ExecState, @CallingState) .
+
+    ceq invokeStaticFunction (ZX:ExecState, FE:FunctionExpression, VS:Values) =
+        setContextStack(ZX:ExecState, CS:ContextStack)
+        if CS:ContextStack := addContext(FE:FunctionExpression, VS:Values, ZX:ExecState) .
+
+    eq invokeLambdaFunction (ZX:ExecState, FE:FunctionExpression, FC:Closures, VS:Values) =
+        ---TODO: Complete the lambda function invoke...
+        ZX:ExecState .
+        ---...
+
+    eq invokeObjectFunction (ZX:ExecState, FE:FunctionExpression, FC:Closures, VS:Values) =
+        ---TODO: Complete the object function invoke...
+        ZX:ExecState .
+        ---...
+
+    *** |------------------------------------------------------------------------------|
+    *** | Message                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    op addMessage : ExecState Value Value       -> ExecState .
+    op addMessage : Configuration Pid Pid Value -> Configuration .
+    op addMessage : ProcessObject Message       -> ProcessObject .
+
+    op isSameDestination : ProcessObject Message -> Bool .
+    op isFirstMessage    : Message Configuration -> Bool .
+
+    ceq addMessage (ZX:ExecState, PID:Value, V:Value) =
+        setWorld(ZX:ExecState, W2:Configuration)
+        if OPID:Pid         := getPid(ZX:ExecState)
+        /\ DPID:Pid         := getPid(PID:Value)
+        /\ W1:Configuration := getWorld(ZX:ExecState)
+        /\ W2:Configuration := addMessage(W1:Configuration, OPID:Pid, DPID:Pid, V:Value) .
+    eq addMessage (ZX:ExecState, PID:Value, V:Value) =
+        ZX:ExecState [owise] .
+
+    ceq addMessage (W:Configuration SO:StatusObject, OPID:Pid, DPID:Pid, V:Value) =
+        W:Configuration incNextIndex(SO:StatusObject) M:Message
+        if MID:NzNat := getNextIndex(SO:StatusObject)
+        /\ M:Message := newMessage(MID:NzNat, OPID:Pid, DPID:Pid, V:Value) .
+    eq addMessage (W:Configuration, OPID:Pid, DPID:Pid, V:Value) =
+        W:Configuration [owise] .
+
+    ceq addMessage (PO:ProcessObject, MSG:Message) =
+        addMessage(P2:ProcessObject, getValue(MSG:Message))
+        if isSameDestination(PO:ProcessObject, MSG:Message)
+        /\ P2:ProcessObject := setNewMsgsFlag(PO:ProcessObject, true) .
+    eq addMessage (PO:ProcessObject, MSG:Message) =
+        PO:ProcessObject [owise] .
+
+    ceq isSameDestination (PO:ProcessObject, MSG:Message) =
+        sameProcess(PO:ProcessObject, N:Nat, P:Nat)
+        if N:Nat := getDestNodeID(MSG:Message)
+        /\ P:Nat := getDestProcessID(MSG:Message) .
+
+    ceq isFirstMessage (MSG1:Message, MSG2:Message W:Configuration) =
+        false
+        if isSameOrig(MSG1:Message, MSG2:Message) and
+           isNewer(MSG1:Message, MSG2:Message) .
+    eq isFirstMessage (MSG:Message, W:Configuration) =
+        true [owise] .
+
+endm)

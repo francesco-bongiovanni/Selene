@@ -1,0 +1,557 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Operations}
+%)
+
+*** |====================================================================================|
+*** | Expression                                                                         |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod OPERATIONS}
+    This functional module represents operations with values.
+%)
+(fmod OPERATIONS is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr VALUE .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isAtom : Value -> Bool .
+
+    eq isAtom (V:Value) = isSymbol(V:Value) or isBoolean(V:Value) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Unary Operators                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op plus  : Value -> Value .
+    op minus : Value -> Value .
+    op not   : Value -> Value .
+    op bnot  : Value -> Value .
+
+    ceq plus (R:Value) = R:Value if isNumber(R:Value) .
+    eq  plus (R:Value) = makeOperationError [owise] .
+
+    ceq minus (R:Value) = makeValue(- getNatural(R:Value)) if isNatural(R:Value) .
+    ceq minus (R:Value) = makeValue(- getInteger(R:Value)) if isInteger(R:Value) .
+    ceq minus (R:Value) = makeValue(- getFloat(R:Value))   if isFloat(R:Value) .
+    eq  minus (R:Value) = makeOperationError [owise] .
+
+    ceq not (R:Value) = makeValue(not getBoolean(R:Value)) if isBoolean(R:Value) .
+    eq  not (R:Value) = makeOperationError [owise] .
+
+    ceq bnot (R:Value) = makeValue(~ getNatural(R:Value))   if isNatural(R:Value) .
+    ceq bnot (R:Value) = makeValue(~ getInteger(R:Value))   if isInteger(R:Value) .
+    ceq bnot (R:Value) = makeValue(not getBoolean(R:Value)) if isBoolean(R:Value) .
+    eq  bnot (R:Value) = makeOperationError [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Binary Operators                                                             |
+    *** |------------------------------------------------------------------------------|
+
+    op addition        : Value Value -> Value .
+    op subtraction     : Value Value -> Value .
+    op multiplication  : Value Value -> Value .
+    op division        : Value Value -> Value .
+    op integerDivision : Value Value -> Value .
+    op remainder       : Value Value -> Value .
+
+    op equal          : Value Value -> Value .
+    op notEqual       : Value Value -> Value .
+    op less           : Value Value -> Value .
+    op greater        : Value Value -> Value .
+    op lessOrEqual    : Value Value -> Value .
+    op greaterOrEqual : Value Value -> Value .
+
+    op fullEqual    : Value Value -> Value .
+    op fullNotEqual : Value Value -> Value .
+
+    op and : Value Value -> Value .
+    op or  : Value Value -> Value .
+    op xor : Value Value -> Value .
+
+    op band : Value Value -> Value .
+    op bor  : Value Value -> Value .
+    op bxor : Value Value -> Value .
+
+    op shiftLeft  : Value Value -> Value .
+    op shiftRight : Value Value -> Value .
+
+    eq addition (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) + toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) + toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) + toNatural(R:Value))
+            fi fi
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) + getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(makeListValue(
+                getValues(L:Value) getValues(R:Value)
+            ))
+        else
+            makeOperationError
+        fi fi fi .
+
+    eq subtraction (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) - toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) - toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) - toNatural(R:Value))
+            fi fi
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(makeListValue(
+                subtract(getValues(L:Value), getValues(R:Value))
+            ))
+        else
+            makeOperationError
+        fi fi .
+
+    eq multiplication (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) * toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) * toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) * toNatural(R:Value))
+            fi fi
+        else
+            makeOperationError
+        fi .
+
+    eq division (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) and isNotZero(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) / toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) / toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) quo toNatural(R:Value))
+            fi fi
+        else
+            makeOperationError
+        fi .
+
+    eq integerDivision (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) and isNotZero(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(trunc(rat(toFloat(L:Value) / toFloat(R:Value))))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) quo toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) quo toNatural(R:Value))
+            fi fi
+        else
+            makeOperationError
+        fi .
+
+    eq remainder (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) rem toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) rem toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) rem toNatural(R:Value))
+            fi fi
+        else
+            makeOperationError
+        fi .
+
+    eq equal (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) == toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) == toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) == toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toSymbol(L:Value) == toSymbol(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) == getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) == getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) == getTuple(R:Value))
+        else if isPointer(L:Value) and isPointer(R:Value) then
+            makeValue(getPointer(L:Value) == getPointer(R:Value))
+        else if isError(L:Value) and isError(R:Value) then
+            makeValue(getError(L:Value) == getError(R:Value))
+        else
+            makeValue(false)
+        fi fi fi fi fi fi fi .
+
+    eq notEqual (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) =/= toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) =/= toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) =/= toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toSymbol(L:Value) =/= toSymbol(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) =/= getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) =/= getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) =/= getTuple(R:Value))
+        else if isPointer(L:Value) and isPointer(R:Value) then
+            makeValue(getPointer(L:Value) =/= getPointer(R:Value))
+        else if isError(L:Value) and isError(R:Value) then
+            makeValue(getError(L:Value) =/= getError(R:Value))
+        else
+            makeValue(true)
+        fi fi fi fi fi fi fi .
+
+    eq less (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) < toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) < toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) < toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toString(L:Value) < toString(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) < getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) < getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) < getTuple(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq greater (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) > toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) > toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) > toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toString(L:Value) > toString(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) > getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) > getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) > getTuple(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq lessOrEqual (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) <= toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) <= toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) <= toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toString(L:Value) <= toString(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) <= getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) <= getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) <= getTuple(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq greaterOrEqual (L:Value, R:Value) =
+        if isNumber(L:Value) and isNumber(R:Value) then
+            if isFloat(L:Value) or isFloat(R:Value) then
+                makeValue(toFloat(L:Value) >= toFloat(R:Value))
+            else if isInteger(L:Value) or isInteger(R:Value) then
+                makeValue(toInteger(L:Value) >= toInteger(R:Value))
+            else
+                makeValue(toNatural(L:Value) >= toNatural(R:Value))
+            fi fi
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toString(L:Value) >= toString(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) >= getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) >= getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) >= getTuple(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq fullEqual (L:Value, R:Value) =
+        if isFloat(L:Value) and isFloat(R:Value) then
+            makeValue(toFloat(L:Value) == toFloat(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(toInteger(L:Value) == toInteger(R:Value))
+        else if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(toNatural(L:Value) == toNatural(R:Value))
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toSymbol(L:Value) == toSymbol(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) == getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) == getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) == getTuple(R:Value))
+        else if isPointer(L:Value) and isPointer(R:Value) then
+            makeValue(getPointer(L:Value) == getPointer(R:Value))
+        else if isError(L:Value) and isError(R:Value) then
+            makeValue(getError(L:Value) == getError(R:Value))
+        else
+            makeValue(false)
+        fi fi fi fi fi fi fi fi fi .
+
+    eq fullNotEqual (L:Value, R:Value) =
+        if isFloat(L:Value) and isFloat(R:Value) then
+            makeValue(toFloat(L:Value) =/= toFloat(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(toInteger(L:Value) =/= toInteger(R:Value))
+        else if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(toNatural(L:Value) =/= toNatural(R:Value))
+        else if isAtom(L:Value) and isAtom(R:Value) then
+            makeValue(toSymbol(L:Value) =/= toSymbol(R:Value))
+        else if isString(L:Value) and isString(R:Value) then
+            makeValue(getString(L:Value) =/= getString(R:Value))
+        else if isList(L:Value) and isList(R:Value) then
+            makeValue(getList(L:Value) =/= getList(R:Value))
+        else if isTuple(L:Value) and isTuple(R:Value) then
+            makeValue(getTuple(L:Value) =/= getTuple(R:Value))
+        else if isPointer(L:Value) and isPointer(R:Value) then
+            makeValue(getPointer(L:Value) =/= getPointer(R:Value))
+        else if isError(L:Value) and isError(R:Value) then
+            makeValue(getError(L:Value) =/= getError(R:Value))
+        else
+            makeValue(true)
+        fi fi fi fi fi fi fi fi fi .
+
+    eq and (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) and getBoolean(R:Value))
+        else
+            makeOperationError
+        fi .
+
+    eq or (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) or getBoolean(R:Value))
+        else
+            makeOperationError
+        fi .
+
+    eq xor (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) xor getBoolean(R:Value))
+        else
+            makeOperationError
+        fi .
+
+    eq band (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) and getBoolean(R:Value))
+        else if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(getNatural(L:Value) & getNatural(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(getInteger(L:Value) & getInteger(R:Value))
+        else if (isBoolean(L:Value) or isBoolean(R:Value)) and
+                (isNatural(L:Value) or isNatural(R:Value) or
+                 isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toBoolean(L:Value) and toBoolean(R:Value))
+        else if (isNatural(L:Value) or isNatural(R:Value)) and
+                (isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toInteger(L:Value) & toInteger(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq bor (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) or getBoolean(R:Value))
+        else if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(getNatural(L:Value) | getNatural(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(getInteger(L:Value) | getInteger(R:Value))
+        else if (isBoolean(L:Value) or isBoolean(R:Value)) and
+                (isNatural(L:Value) or isNatural(R:Value) or
+                 isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toBoolean(L:Value) or toBoolean(R:Value))
+        else if (isNatural(L:Value) or isNatural(R:Value)) and
+                (isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toInteger(L:Value) | toInteger(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq bxor (L:Value, R:Value) =
+        if isBoolean(L:Value) and isBoolean(R:Value) then
+            makeValue(getBoolean(L:Value) xor getBoolean(R:Value))
+        else if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(getNatural(L:Value) xor getNatural(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(getInteger(L:Value) xor getInteger(R:Value))
+        else if (isBoolean(L:Value) or isBoolean(R:Value)) and
+                (isNatural(L:Value) or isNatural(R:Value) or
+                 isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toBoolean(L:Value) xor toBoolean(R:Value))
+        else if (isNatural(L:Value) or isNatural(R:Value)) and
+                (isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toInteger(L:Value) xor toInteger(R:Value))
+        else
+            makeOperationError
+        fi fi fi fi fi .
+
+    eq shiftLeft (L:Value, R:Value) =
+        if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(getNatural(L:Value) << getNatural(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(getInteger(L:Value) << getInteger(R:Value))
+        else if (isNatural(L:Value) or isNatural(R:Value)) and
+                (isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toInteger(L:Value) << toInteger(R:Value))
+        else
+            makeOperationError
+        fi fi fi .
+
+    eq shiftRight (L:Value, R:Value) =
+        if isNatural(L:Value) and isNatural(R:Value) then
+            makeValue(getNatural(L:Value) >> getNatural(R:Value))
+        else if isInteger(L:Value) and isInteger(R:Value) then
+            makeValue(getInteger(L:Value) >> getInteger(R:Value))
+        else if (isNatural(L:Value) or isNatural(R:Value)) and
+                (isInteger(L:Value) or isInteger(R:Value)) then
+            makeValue(toInteger(L:Value) >> toInteger(R:Value))
+        else
+            makeOperationError
+        fi fi fi .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op _<_  : Values     Values     -> Bool .
+    op _>_  : Values     Values     -> Bool .
+    op _<=_ : Values     Values     -> Bool .
+    op _>=_ : Values     Values     -> Bool .
+    op _<_  : ListValue  ListValue  -> Bool .
+    op _>_  : ListValue  ListValue  -> Bool .
+    op _<=_ : ListValue  ListValue  -> Bool .
+    op _>=_ : ListValue  ListValue  -> Bool .
+    op _<_  : TupleValue TupleValue -> Bool .
+    op _>_  : TupleValue TupleValue -> Bool .
+    op _<=_ : TupleValue TupleValue -> Bool .
+    op _>=_ : TupleValue TupleValue -> Bool .
+
+    eq LVS:Values < RVS:Values =
+        if (LVS:Values == nil) and (RVS:Values == nil) then
+            false
+        else if (LVS:Values =/= nil) and (RVS:Values == nil) then
+            false
+        else if (LVS:Values == nil) and (RVS:Values =/= nil) then
+            true
+        else if toBoolean(less(head(LVS:Values), head(RVS:Values))) then
+            true
+        else if toBoolean(greaterOrEqual(head(LVS:Values), head(RVS:Values))) then
+            false
+        else
+            tail(LVS:Values) < tail(RVS:Values)
+        fi fi fi fi fi .
+
+    eq LVS:Values > RVS:Values =
+        if (LVS:Values == nil) and (RVS:Values == nil) then
+            false
+        else if (LVS:Values =/= nil) and (RVS:Values == nil) then
+            true
+        else if (LVS:Values == nil) and (RVS:Values =/= nil) then
+            false
+        else if toBoolean(lessOrEqual(head(LVS:Values), head(RVS:Values))) then
+            false
+        else if toBoolean(greater(head(LVS:Values), head(RVS:Values))) then
+            true
+        else
+            tail(LVS:Values) > tail(RVS:Values)
+        fi fi fi fi fi .
+
+    eq LVS:Values <= RVS:Values =
+        if (LVS:Values == nil) and (RVS:Values == nil) then
+            true
+        else if (LVS:Values =/= nil) and (RVS:Values == nil) then
+            false
+        else if (LVS:Values == nil) and (RVS:Values =/= nil) then
+            true
+        else if toBoolean(lessOrEqual(head(LVS:Values), head(RVS:Values))) then
+            true
+        else if toBoolean(greater(head(LVS:Values), head(RVS:Values))) then
+            false
+        else
+            tail(LVS:Values) <= tail(RVS:Values)
+        fi fi fi fi fi .
+
+    eq LVS:Values >= RVS:Values =
+        if (LVS:Values == nil) and (RVS:Values == nil) then
+            true
+        else if (LVS:Values =/= nil) and (RVS:Values == nil) then
+            true
+        else if (LVS:Values == nil) and (RVS:Values =/= nil) then
+            false
+        else if toBoolean(less(head(LVS:Values), head(RVS:Values))) then
+            false
+        else if toBoolean(greaterOrEqual(head(LVS:Values), head(RVS:Values))) then
+            true
+        else
+            tail(LVS:Values) >= tail(RVS:Values)
+        fi fi fi fi fi .
+
+    eq @ls(LVS:Values) <  @ls(RVS:Values) = LVS:Values <  RVS:Values .
+    eq @ls(LVS:Values) >  @ls(RVS:Values) = LVS:Values >  RVS:Values .
+    eq @ls(LVS:Values) <= @ls(RVS:Values) = LVS:Values <= RVS:Values .
+    eq @ls(LVS:Values) >= @ls(RVS:Values) = LVS:Values >= RVS:Values .
+
+    eq @tp(LVS:Values) <  @tp(RVS:Values) = LVS:Values <  RVS:Values .
+    eq @tp(LVS:Values) >  @tp(RVS:Values) = LVS:Values >  RVS:Values .
+    eq @tp(LVS:Values) <= @tp(RVS:Values) = LVS:Values <= RVS:Values .
+    eq @tp(LVS:Values) >= @tp(RVS:Values) = LVS:Values >= RVS:Values .
+
+endfm)

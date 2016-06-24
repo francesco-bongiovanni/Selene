@@ -1,0 +1,127 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Model Checking Properties: Message}
+%)
+
+*** |====================================================================================|
+*** | MCP Message                                                                        |
+*** |====================================================================================|
+
+---(%
+\subsection{mod MCP-MESSAGE}
+    This module represents some model checking properties about messages.
+%)
+(mod MCP-MESSAGE is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr RUNNER .
+    pr SATISFACTION .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    subsort Configuration < State .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Functions                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    op $existMsgWithOrig    : Configuration Pid   -> Bool .
+    op $existMsgWithDest    : Configuration Pid   -> Bool .
+    op $existMsgWithBadOrig : Configuration Pid   -> Bool .
+    op $existMsgWithBadDest : Configuration Pid   -> Bool .
+    op $existMsgWithValue   : Configuration Value -> Bool .
+
+    ceq $existMsgWithOrig (MSG:Message PO:ProcessObject W:Configuration, P:Pid) =
+        true
+        if P:Pid == getOrigPID(MSG:Message) and
+           P:Pid == getPid(PO:ProcessObject) .
+    eq $existMsgWithOrig (W:Configuration, P:Pid) =
+        false [owise] .
+
+    ceq $existMsgWithDest (MSG:Message PO:ProcessObject W:Configuration, P:Pid) =
+        true
+        if P:Pid == getDestPID(MSG:Message) and
+           P:Pid == getPid(PO:ProcessObject) .
+    eq $existMsgWithDest (W:Configuration, P:Pid) =
+        false [owise] .
+
+    ceq $existMsgWithBadOrig (MSG:Message W:Configuration, P:Pid) =
+        not $existMsgWithOrig(MSG:Message W:Configuration, P:Pid)
+        if P:Pid == getOrigPID(MSG:Message) .
+    eq $existMsgWithBadOrig (W:Configuration, P:Pid) =
+        false [owise] .
+
+    ceq $existMsgWithBadDest (MSG:Message W:Configuration, P:Pid) =
+        not $existMsgWithDest(MSG:Message W:Configuration, P:Pid)
+        if P:Pid == getDestPID(MSG:Message) .
+    eq $existMsgWithBadDest (W:Configuration, P:Pid) =
+        false [owise] .
+
+    ceq $existMsgWithValue (MSG:Message W:Configuration, V:Value) =
+        true
+        if V:Value == getValue(MSG:Message) .
+    eq $existMsgWithValue (W:Configuration, V:Value) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Properties                                                                   |
+    *** |------------------------------------------------------------------------------|
+
+    op ?existMsgWithOrig : Nat Nat -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithOrig(N:Nat, P:Nat) =
+        ($existMsgWithOrig(W:Configuration, makePid(N:Nat, P:Nat)) == true) .
+
+    op ?existMsgWithOrig : Pid -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithOrig(P:Pid) =
+        ($existMsgWithOrig(W:Configuration, P:Pid) == true) .
+
+    op ?existMsgWithDest : Nat Nat -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithDest(N:Nat, P:Nat) =
+        ($existMsgWithDest(W:Configuration, makePid(N:Nat, P:Nat)) == true) .
+
+    op ?existMsgWithDest : Pid -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithDest(P:Pid) =
+        ($existMsgWithDest(W:Configuration, P:Pid) == true) .
+
+    op ?existMsgWithBadOrig : Nat Nat -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithBadOrig(N:Nat, P:Nat) =
+        ($existMsgWithBadOrig(W:Configuration, makePid(N:Nat, P:Nat)) == true) .
+
+    op ?existMsgWithBadOrig : Pid -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithBadOrig(P:Pid) =
+        ($existMsgWithBadOrig(W:Configuration, P:Pid) == true) .
+
+    op ?existMsgWithBadDest : Nat Nat -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithBadDest(N:Nat, P:Nat) =
+        ($existMsgWithBadDest(W:Configuration, makePid(N:Nat, P:Nat)) == true) .
+
+    op ?existMsgWithBadDest : Pid -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithBadDest(P:Pid) =
+        ($existMsgWithBadDest(W:Configuration, P:Pid) == true) .
+
+    op ?existMsgWithValue : Value -> Prop [ctor] .
+    eq W:Configuration |= ?existMsgWithValue(V:Value) =
+        ($existMsgWithValue(W:Configuration, V:Value) == true) .
+
+endm)

@@ -1,0 +1,142 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Utility}
+%)
+
+*** |====================================================================================|
+*** | List                                                                               |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod LIST2}
+    This object module represents an extension to the list module.
+%)
+(fmod LIST2 {X :: TRIV} is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    inc LIST{X} .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var N : Nat .
+
+    vars E E2 : X$Elt .
+    vars L L2 : List{X} .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Functions                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    op _!!_        : List{X} Nat     -> X$Elt .
+    op elemAt      : List{X} Nat     -> X$Elt .
+    op hasAnyElem  : List{X}         -> Bool .
+    op subtract    : List{X} List{X} -> List{X} .
+    op $subtract   : List{X} X$Elt   -> List{X} .
+
+    eq L !! N = elemAt(L, N) .
+
+    eq elemAt (E L, 0)    = E .
+    eq elemAt (E L, s(N)) = elemAt(L, N) [owise] .
+
+    eq hasAnyElem (E L) = true .
+    eq hasAnyElem (L)   = false [owise] .
+
+    eq subtract (L, nil)   = L .
+    eq subtract (L, E2 L2) = subtract($subtract(L, E2), L2) [owise] .
+
+    eq $subtract (nil, E2) = nil .
+    eq $subtract (E L, E2) = if E == E2 then L
+                             else E $subtract(L, E2) fi [owise] .
+
+endfm)
+
+*** |====================================================================================|
+*** | Utility                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{omod UTILITY}
+    This object module represents some basic utilities to work with objects and modules.
+%)
+(omod UTILITY is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr QID .
+
+    pr LIST2{Qid} * (sort List{Qid} to Qids) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort Pid .
+
+    subsort Qid < Oid .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @id  : Nat     -> Oid [ctor] .
+    op @pid : Nat Nat -> Pid [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeID :     -> Oid .
+    op makeID : Nat -> Oid .
+
+    op makePid :         -> Pid .
+    op makePid : Nat Nat -> Pid .
+
+    eq makeID         = @id(0) .
+    eq makeID (N:Nat) = @id(N:Nat) .
+
+    eq makePid                = @pid(0, 0) .
+    eq makePid (N:Nat, P:Nat) = @pid(N:Nat, P:Nat) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getID : Oid ~> Nat .
+
+    op getNode    : Pid -> Nat .
+    op getProcess : Pid -> Nat .
+
+    op setNode    : Pid Nat -> Pid .
+    op setProcess : Pid Nat -> Pid .
+
+    eq getID (@id(N:Nat)) = N:Nat .
+
+    eq getNode    (@pid(N:Nat, P:Nat)) = N:Nat .
+    eq getProcess (@pid(N:Nat, P:Nat)) = P:Nat .
+
+    eq setNode    (@pid(N:Nat, P:Nat), N2:Nat) = @pid(N2:Nat, P:Nat) .
+    eq setProcess (@pid(N:Nat, P:Nat), P2:Nat) = @pid(N:Nat,  P2:Nat) .
+
+endom)

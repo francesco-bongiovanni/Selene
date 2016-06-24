@@ -1,0 +1,437 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Context}
+%)
+
+*** |====================================================================================|
+*** | Context                                                                            |
+*** |====================================================================================|
+
+---(%
+\subsection{fmod CONTEXT}
+    This functional module represents a context inside a process. The context
+    helps to the process to have track of the current executed code and the
+    variables aliases or names.
+
+\paragraph{Context}
+    This operator represents a context inside a process.
+    \begin{itemize}
+    \item \textbf{function:}
+        The current function of the context.
+    \item \textbf{ambits:}
+        The current ambits stack of the context.
+    \item \textbf{stack:}
+        The memory stack of values of the context.
+    \item \textbf{result:}
+        The final value to return when exit the context.
+    \end{itemize}
+%)
+(fmod CONTEXT is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr AMBIT .
+    pr VIEW-TYPES .
+
+    pr LIST2{Context} * (sort List{Context} to ContextStack) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op @cx : Qids AmbitStack MemorySegment Value -> Context [ctor] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op makeContext         :                                       -> Context .
+    op makeContext         : Error                                 -> Context .
+    op makeContext         : Qids AmbitStack MemorySegment         -> Context .
+    op makeContext         : Qids AmbitStack MemorySegment Value   -> Context .
+    op makeAmbitAndContext : Qids Expressions Variables            -> Context .
+    op makeAmbitAndContext : Qids Expressions Variables Values     -> Context .
+    op makeAmbitAndContext : Qids Expressions Variables Values Nat -> Context .
+
+    op makeInvalidContext : -> Context .
+
+    eq makeContext =
+        @cx(nil, makeAmbit, makeMemorySegment, makeValue(nothing)) .
+
+    eq makeContext (E:Error) =
+        @cx(nil, nil, makeMemorySegment, makeValue(E:Error)) .
+
+    eq makeContext (F:Qids, A:AmbitStack, S:MemorySegment) =
+        @cx(F:Qids, A:AmbitStack, S:MemorySegment, makeValue(nothing)) .
+
+    eq makeContext (F:Qids, A:AmbitStack, S:MemorySegment, R:Value) =
+        @cx(F:Qids, A:AmbitStack, S:MemorySegment, R:Value) .
+
+    eq makeAmbitAndContext (F:Qids, C:Expressions, V:Variables) =
+        @cx(
+            F:Qids,
+            makeAmbit(C:Expressions, V:Variables),
+            makeMemorySegment,
+            makeValue(nothing)
+        ) .
+
+    eq makeAmbitAndContext (F:Qids, C:Expressions, V:Variables, VS:Values) =
+        @cx(
+            F:Qids,
+            makeAmbit(C:Expressions, V:Variables),
+            makeMemorySegment(VS:Values),
+            makeValue(nothing)
+        ) .
+
+    eq makeAmbitAndContext (F:Qids, C:Expressions, V:Variables, VS:Values, N:Nat) =
+        @cx(
+            F:Qids,
+            makeAmbit(C:Expressions, V:Variables),
+            addIndex(makeMemorySegment(VS:Values), N:Nat),
+            makeValue(nothing)
+        ) .
+
+    eq makeInvalidContext =
+        makeContext(@InvalidContext) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getFunction : Context -> Qids .
+    op getAmbits   : Context -> AmbitStack .
+    op getStack    : Context -> MemorySegment .
+    op getResult   : Context -> Value .
+
+    op setFunction : Context Qids          -> Context .
+    op setAmbits   : Context AmbitStack    -> Context .
+    op setStack    : Context MemorySegment -> Context .
+    op setResult   : Context Value         -> Context .
+
+    op getNamespace  : Context -> Qids .
+    op $getNamespace : Qids -> Qids .
+
+    eq getFunction (@cx(F:Qids, A:AmbitStack, S:MemorySegment, R:Value)) = F:Qids .
+    eq getAmbits   (@cx(F:Qids, A:AmbitStack, S:MemorySegment, R:Value)) = A:AmbitStack .
+    eq getStack    (@cx(F:Qids, A:AmbitStack, S:MemorySegment, R:Value)) = S:MemorySegment .
+    eq getResult   (@cx(F:Qids, A:AmbitStack, S:MemorySegment, R:Value)) = R:Value .
+
+    eq setFunction (@cx(F:Qids,  A:AmbitStack,  S:MemorySegment,  R:Value), F2:Qids) =
+                    @cx(F2:Qids, A:AmbitStack,  S:MemorySegment,  R:Value) .
+    eq setAmbits   (@cx(F:Qids,  A:AmbitStack,  S:MemorySegment,  R:Value), A2:AmbitStack) =
+                    @cx(F:Qids,  A2:AmbitStack, S:MemorySegment,  R:Value) .
+    eq setStack    (@cx(F:Qids,  A:AmbitStack,  S:MemorySegment,  R:Value), S2:MemorySegment) =
+                    @cx(F:Qids,  A:AmbitStack,  S2:MemorySegment, R:Value) .
+    eq setResult   (@cx(F:Qids,  A:AmbitStack,  S:MemorySegment,  R:Value), R2:Value) =
+                    @cx(F:Qids,  A:AmbitStack,  S:MemorySegment,  R2:Value) .
+
+    eq getNamespace  (C:Context)     = $getNamespace(getFunction(C:Context)) .
+    eq $getNamespace (FS:Qids F:Qid) = FS:Qids .
+    eq $getNamespace (FS:Qids)       = FS:Qids [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op hasCell            : ContextStack Nat      -> Bool .
+    op hasError           : Context               -> Bool .
+    op hasState           : ContextStack ExpState -> Bool .
+    op hasTopAnError      : ContextStack          -> Bool .
+    op hasEndedProcess    : ContextStack          -> Bool .
+    op hasEndedContext    : ContextStack          -> Bool .
+    op hasEndedAmbit      : ContextStack          -> Bool .
+    op hasEndedExpression : ContextStack          -> Bool .
+    op hasAnyExpression   : ContextStack          -> Bool .
+
+    ceq hasCell (CS:ContextStack, N:Nat) =
+        true
+        if LCS:ContextStack C:Context RCS:ContextStack := CS:ContextStack
+        /\ hasCell(getStack(C:Context), N:Nat) .
+    eq hasCell (CS:ContextStack, N:Nat) =
+        false [owise] .
+
+    eq hasError (C:Context) =
+        isError(getResult(C:Context)) .
+
+    eq hasState (CS:ContextStack C:Context, S:ExpState) =
+        hasState(getAmbits(C:Context), S:ExpState) .
+    eq hasState (CS:ContextStack, S:ExpState) =
+        false [owise] .
+
+    eq hasTopAnError (CS:ContextStack C:Context) =
+        hasError(C:Context) .
+    eq hasTopAnError (CS:ContextStack) =
+        false [owise] .
+
+    ceq hasEndedProcess (C:Context) =
+        true
+        if hasEndedAmbits(getAmbits(C:Context)) .
+    eq hasEndedProcess (CS:ContextStack) =
+        CS:ContextStack == nil [owise] .
+
+    eq hasEndedContext (CS:ContextStack C:Context) =
+        hasEndedAmbits(getAmbits(C:Context)) .
+    eq hasEndedContext (CS:ContextStack) =
+        CS:ContextStack == nil [owise] .
+
+    eq hasEndedAmbit (CS:ContextStack C:Context) =
+        hasEndedAmbit(getAmbits(C:Context)) .
+    eq hasEndedAmbit (CS:ContextStack) =
+        CS:ContextStack == nil [owise] .
+
+    eq hasEndedExpression (CS:ContextStack) =
+        hasState(CS:ContextStack, @FinishedState) .
+
+    eq hasAnyExpression (CS:ContextStack C:Context) =
+        hasAnyExpression(getAmbits(C:Context)) .
+    eq hasAnyExpression (CS:ContextStack) =
+        false [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Stacks                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op pushContext : ContextStack Context -> ContextStack .
+    op popContext  : ContextStack         -> ContextStack .
+    op topContext  : ContextStack         -> Context .
+    op pushAmbit   : ContextStack Ambit   -> ContextStack .
+    op popAmbit    : ContextStack         -> ContextStack .
+    op topAmbit    : ContextStack         -> Ambit .
+
+    eq pushContext (CS:ContextStack, C:Context) = addIndex(CS:ContextStack C:Context) .
+    eq popContext  (CS:ContextStack C:Context)  = CS:ContextStack .
+    eq popContext  (CS:ContextStack)            = CS:ContextStack [owise] .
+    eq topContext  (CS:ContextStack C:Context)  = C:Context .
+    eq topContext  (CS:ContextStack)            = makeInvalidContext [owise] .
+
+    ceq pushAmbit (CS:ContextStack C1:Context, A:Ambit) =
+        CS:ContextStack C2:Context
+        if AS:AmbitStack := getAmbits(C1:Context)
+        /\ A2:AmbitStack := pushAmbit(AS:AmbitStack, A:Ambit)
+        /\ C2:Context    := setAmbits(C1:Context, A2:AmbitStack) .
+    eq pushAmbit (CS:ContextStack, A:Ambit) =
+        CS:ContextStack [owise] .
+
+    ceq popAmbit (CS:ContextStack C1:Context) =
+        CS:ContextStack C2:Context
+        if AS:AmbitStack := popAmbit(getAmbits(C1:Context))
+        /\ C2:Context    := setAmbits(C1:Context, AS:AmbitStack) .
+    eq popAmbit (CS:ContextStack) =
+        CS:ContextStack [owise] .
+
+    eq topAmbit (CS:ContextStack C:Context) =
+        topAmbit(getAmbits(C:Context)) .
+    eq topAmbit (CS:ContextStack) =
+        makeInvalidAmbit [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Values                                                                       |
+    *** |------------------------------------------------------------------------------|
+
+    op pushValue  : ContextStack Value  -> ContextStack .
+    op pushValues : ContextStack Values -> ContextStack .
+    op popValue   : ContextStack        -> ContextStack .
+    op topValue   : ContextStack        -> Value .
+    op nextIndex  : ContextStack        -> Nat .
+    op topIndex   : ContextStack        -> Nat .
+    op $topIndex  : ContextStack Nat    -> Nat .
+    op addIndex   : ContextStack        -> ContextStack .
+    op addIndex   : ContextStack Nat    -> ContextStack .
+
+    op getRefs  : ContextStack Qid       -> References .
+    op getValue : ContextStack Nat       -> Value .
+    op getCell  : ContextStack Nat       -> MemoryCell .
+    op setCell  : ContextStack Nat Value -> ContextStack .
+
+    ceq pushValue (CS:ContextStack C1:Context, V:Value) =
+        if S1:MemorySegment == makeMemorySegment then
+            addIndex(CS:ContextStack C2:Context)
+        else
+            CS:ContextStack C2:Context
+        fi
+        if S1:MemorySegment := getStack(C1:Context)
+        /\ S2:MemorySegment := pushValue(S1:MemorySegment, V:Value)
+        /\ C2:Context       := setStack(C1:Context, S2:MemorySegment) .
+    eq pushValue (CS:ContextStack, V:Value) =
+        nil [owise] .
+
+    ceq pushValues (CS:ContextStack C1:Context, VS:Values) =
+        if S1:MemorySegment == makeMemorySegment then
+            addIndex(CS:ContextStack C2:Context)
+        else
+            CS:ContextStack C2:Context
+        fi
+        if S1:MemorySegment := getStack(C1:Context)
+        /\ S2:MemorySegment := pushValues(S1:MemorySegment, VS:Values)
+        /\ C2:Context       := setStack(C1:Context, S2:MemorySegment) .
+    eq pushValues (CS:ContextStack, VS:Values) =
+        nil [owise] .
+
+    ceq popValue (CS:ContextStack C1:Context) =
+        CS:ContextStack C2:Context
+        if S1:MemorySegment := getStack(C1:Context)
+        /\ S2:MemorySegment := popValue(S1:MemorySegment)
+        /\ C2:Context       := setStack(C1:Context, S2:MemorySegment) .
+    eq popValue (CS:ContextStack) =
+        nil [owise] .
+
+    eq topValue (CS:ContextStack C:Context) =
+        topValue(getStack(C:Context)) .
+    eq topValue (CS:ContextStack) =
+        makeValue(nothing) [owise] .
+
+    eq nextIndex (CS:ContextStack) =
+        $topIndex(CS:ContextStack, 0) .
+
+    eq topIndex (CS:ContextStack) =
+        $topIndex(CS:ContextStack, 0) .
+
+    ceq $topIndex (C:Context CS:ContextStack, N:Nat) =
+        if N2:Nat > N:Nat then
+            $topIndex(CS:ContextStack, N2:Nat)
+        else
+            $topIndex(CS:ContextStack, N:Nat)
+        fi
+        if N2:Nat := topIndex(getStack(C:Context)) .
+    eq $topIndex (CS:ContextStack, N:Nat) =
+        N:Nat [owise] .
+
+    ceq addIndex (CS:ContextStack C1:Context) =
+        CS:ContextStack C2:Context
+        if N:Nat            := topIndex(CS:ContextStack)
+        /\ MS:MemorySegment := addIndex(getStack(C1:Context), N:Nat)
+        /\ C2:Context       := setStack(C1:Context, MS:MemorySegment) .
+    eq addIndex (CS:ContextStack) =
+        CS:ContextStack [owise] .
+
+    ceq addIndex (CS:ContextStack C1:Context, N:Nat) =
+        CS:ContextStack C2:Context
+        if MS:MemorySegment := addIndex(getStack(C1:Context), N:Nat)
+        /\ C2:Context       := setStack(C1:Context, MS:MemorySegment) .
+    eq addIndex (CS:ContextStack, N:Nat) =
+        CS:ContextStack [owise] .
+
+    eq getRefs (CS:ContextStack C:Context, S:Qid) =
+        getRefs(getAmbits(C:Context), S:Qid) .
+    eq getRefs (CS:ContextStack, S:Qid) =
+        nil [owise] .
+
+    eq getValue (CS:ContextStack, N:Nat) =
+        getValue(getCell(CS:ContextStack, N:Nat)) .
+
+    eq getCell (C:Context CS:ContextStack, N:Nat) =
+        if hasCell(C:Context, N:Nat) then
+            getCell(getStack(C:Context), N:Nat)
+        else
+            getCell(CS:ContextStack, N:Nat)
+        fi .
+    eq getCell (CS:ContextStack, N:Nat) =
+        makeNullCell [owise] .
+
+    eq setCell (C:Context CS:ContextStack, N:Nat, V:Value) =
+        if hasCell(C:Context, N:Nat) then
+            setStack(C:Context, setCell(getStack(C:Context), N:Nat, V:Value))
+        else
+            setCell(CS:ContextStack, N:Nat, V:Value)
+        fi .
+    eq setCell (CS:ContextStack, N:Nat, V:Value) =
+        nil [owise] .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Manipulation                                                                 |
+    *** |------------------------------------------------------------------------------|
+
+    op cleanTopAmbitCode : ContextStack            -> ContextStack .
+    op replaceTopAmbit   : ContextStack Ambit      -> ContextStack .
+    op mergeLastAmbits   : ContextStack            -> ContextStack .
+    op currentExpression : ContextStack            -> Expression .
+    op replaceExpression : ContextStack Expression -> ContextStack .
+    op nextExpression    : ContextStack            -> ContextStack .
+    op getFullStack      : ContextStack            -> MemorySegment .
+    op $getFullStack     : ContextStack            -> MemoryCells .
+    op getLastResult     : ContextStack            -> Value .
+    op setLastResult     : ContextStack Value      -> ContextStack .
+
+    ceq cleanTopAmbitCode (CS:ContextStack C1:Context) =
+        CS:ContextStack C2:Context
+        if A1:AmbitStack := getAmbits(C1:Context)
+        /\ A2:AmbitStack := cleanTopAmbitCode(A1:AmbitStack)
+        /\ C2:Context    := setAmbits(C1:Context, A2:AmbitStack) .
+    eq cleanTopAmbitCode (CS:ContextStack) =
+        CS:ContextStack [owise] .
+
+    ceq replaceTopAmbit (CS:ContextStack C1:Context, A:Ambit) =
+        CS:ContextStack C2:Context
+        if A1:AmbitStack := getAmbits(C1:Context)
+        /\ A2:AmbitStack := replaceTopAmbit(A1:AmbitStack, A:Ambit)
+        /\ C2:Context    := setAmbits(C1:Context, A2:AmbitStack) .
+    eq replaceTopAmbit (CS:ContextStack, A:Ambit) =
+        CS:ContextStack [owise] .
+
+    ceq mergeLastAmbits (CS:ContextStack C1:Context) =
+        CS:ContextStack C2:Context
+        if A1:AmbitStack := getAmbits(C1:Context)
+        /\ A2:AmbitStack := mergeLastAmbits(A1:AmbitStack)
+        /\ C2:Context    := setAmbits(C1:Context, A2:AmbitStack) .
+    eq mergeLastAmbits (CS:ContextStack) =
+        CS:ContextStack [owise] .
+
+    ceq currentExpression (CS:ContextStack C:Context) =
+        currentExpression(AS:AmbitStack)
+        if AS:AmbitStack := getAmbits(C:Context)
+        /\ hasAnyExpression(AS:AmbitStack) .
+    eq currentExpression (CS:ContextStack) =
+        makeEndExpression [owise] .
+
+    ceq replaceExpression (CS:ContextStack C:Context, E2:Expression) =
+        CS:ContextStack setAmbits(C:Context, AS2:AmbitStack)
+        if AS:AmbitStack := getAmbits(C:Context)
+        /\ hasAnyExpression(AS:AmbitStack)
+        /\ AS2:AmbitStack := replaceExpression(AS:AmbitStack, E2:Expression) .
+    eq replaceExpression (CS:ContextStack, E2:Expression) =
+        CS:ContextStack [owise] .
+
+    ceq nextExpression (CS:ContextStack C:Context) =
+        CS:ContextStack setAmbits(C:Context, nextExpression(AS:AmbitStack))
+        if AS:AmbitStack := getAmbits(C:Context)
+        /\ hasAnyExpression(AS:AmbitStack) .
+    eq nextExpression (CS:ContextStack) =
+        CS:ContextStack [owise] .
+
+    eq getFullStack (CS:ContextStack) =
+        makeMemorySegment($getFullStack(CS:ContextStack)) .
+
+    eq $getFullStack (C:Context CS:ContextStack) =
+        getCells(getStack(C:Context)) $getFullStack(CS:ContextStack) .
+    eq $getFullStack (CS:ContextStack) =
+        nil [owise] .
+
+    eq getLastResult (CS:ContextStack C:Context) =
+        getResult(C:Context) .
+    eq getLastResult (CS:ContextStack) =
+        makeValue [owise] .
+
+    eq setLastResult (CS:ContextStack C:Context, V:Value) =
+        CS:ContextStack setResult(C:Context, V:Value) .
+    eq setLastResult (CS:ContextStack, V:Value) =
+        CS:ContextStack [owise] .
+
+endfm)

@@ -1,0 +1,156 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\section{Start Call}
+%)
+
+*** |====================================================================================|
+*** | Start Call                                                                         |
+*** |====================================================================================|
+
+---(%
+\subsection{omod STARTCALL}
+    This object module represents a start call inside a nodes in a machine.
+
+\paragraph{class StartCall}
+    This class represents the start call to execute inside a node.
+    \begin{itemize}
+    \item \textbf{node:}
+        The node identificator number.
+    \item \textbf{function:}
+        The function to call.
+    \item \textbf{params:}
+        The parameters of the function.
+    \end{itemize}
+%)
+(omod STARTCALL is
+    *** |------------------------------------------------------------------------------|
+    *** | Imports                                                                      |
+    *** |------------------------------------------------------------------------------|
+
+    pr VALUE .
+    pr UTILITY .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Sorts                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    sort StartCallObject .
+
+    subsort StartCallObject < Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Data                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    class StartCall | node     : NzNat,
+                      function : Qids,
+                      params   : Values .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Variables                                                                    |
+    *** |------------------------------------------------------------------------------|
+
+    var OBJ : Object .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Memberships                                                                  |
+    *** |------------------------------------------------------------------------------|
+
+    cmb OBJ : StartCallObject if isStartCall(OBJ) .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Make                                                                         |
+    *** |------------------------------------------------------------------------------|
+
+    op newStartCall :     NzNat Qids Values -> Object .
+    op newStartCall : Oid NzNat Qids Values -> Object .
+
+    eq newStartCall (ND:NzNat, FN:Qids, PR:Values) =
+        newStartCall ('call, ND:NzNat, FN:Qids, PR:Values) .
+
+    eq newStartCall (O:Oid, ND:NzNat, FN:Qids, PR:Values) =
+        < O:Oid : StartCall | node     : ND:NzNat,
+                              function : FN:Qids,
+                              params   : PR:Values > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Getters/Setters                                                              |
+    *** |------------------------------------------------------------------------------|
+
+    op getOid      : StartCallObject -> Oid .
+    op getNode     : StartCallObject -> NzNat .
+    op getFunction : StartCallObject -> Qids .
+    op getParams   : StartCallObject -> Values .
+
+    op setOid      : StartCallObject Oid    -> StartCallObject .
+    op setNode     : StartCallObject NzNat  -> StartCallObject .
+    op setFunction : StartCallObject Qids   -> StartCallObject .
+    op setParams   : StartCallObject Values -> StartCallObject .
+
+    eq getOid (< O:Oid : StartCall | node     : ND:NzNat,
+                                     function : FN:Qids,
+                                     params   : PR:Values >) = O:Oid .
+    eq getNode (< O:Oid : StartCall | node     : ND:NzNat,
+                                      function : FN:Qids,
+                                      params   : PR:Values >) = ND:NzNat .
+    eq getFunction (< O:Oid : StartCall | node     : ND:NzNat,
+                                          function : FN:Qids,
+                                          params   : PR:Values >) = FN:Qids .
+    eq getParams (< O:Oid : StartCall | node     : ND:NzNat,
+                                        function : FN:Qids,
+                                        params   : PR:Values >) = PR:Values .
+
+    eq setOid (< O:Oid : StartCall | node     : ND:NzNat,
+                                     function : FN:Qids,
+                                     params   : PR:Values >, O2:Oid) =
+        < O2:Oid : StartCall | node     : ND:NzNat,
+                               function : FN:Qids,
+                               params   : PR:Values > .
+    eq setNode (< O:Oid : StartCall | node     : ND:NzNat,
+                                      function : FN:Qids,
+                                      params   : PR:Values >, ND2:NzNat) =
+        < O:Oid : StartCall | node     : ND2:NzNat,
+                              function : FN:Qids,
+                              params   : PR:Values > .
+    eq setFunction (< O:Oid : StartCall | node     : ND:NzNat,
+                                          function : FN:Qids,
+                                          params   : PR:Values >, FN2:Qids) =
+        < O:Oid : StartCall | node     : ND:NzNat,
+                              function : FN2:Qids,
+                              params   : PR:Values > .
+    eq setParams (< O:Oid : StartCall | node     : ND:NzNat,
+                                        function : FN:Qids,
+                                        params   : PR:Values >, PR2:Values) =
+        < O:Oid : StartCall | node     : ND:NzNat,
+                              function : FN:Qids,
+                              params   : PR2:Values > .
+
+    *** |------------------------------------------------------------------------------|
+    *** | Check                                                                        |
+    *** |------------------------------------------------------------------------------|
+
+    op isStartCall : Object -> Bool .
+
+    eq isStartCall (< O:Oid : StartCall | node     : ND:NzNat,
+                                          function : FN:Qids,
+                                          params   : PR:Values >) = true .
+    eq isStartCall (OBJ) = false [owise] .
+
+endom)

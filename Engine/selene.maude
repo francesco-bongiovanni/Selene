@@ -1,0 +1,120 @@
+--- **************************************************************************************
+--- * Selene: Model-checking in concurrent programing using message passing.
+--- * Copyright (C) 2016  Adrián Riesco Rodríguez, Gorka Suárez García
+--- *
+--- * This program is free software: you can redistribute it and/or modify
+--- * it under the terms of the GNU General Public License as published by
+--- * the Free Software Foundation, either version 3 of the License, or
+--- * (at your option) any later version.
+--- *
+--- * This program is distributed in the hope that it will be useful,
+--- * but WITHOUT ANY WARRANTY; without even the implied warranty of
+--- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+--- * GNU General Public License for more details.
+--- *
+--- * You should have received a copy of the GNU General Public License
+--- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+--- **************************************************************************************
+
+---(%
+\documentclass{article}
+\title{Selene: Model-checking in concurrent programing using message passing}
+\date{2016-03-16}
+\author{Adri\'{a}n Riesco Rodr\'{i}guez, Gorka Su\'{a}rez Garc\'{i}a}
+\begin{document}
+\pagenumbering{gobble}
+\maketitle
+\newpage
+\pagenumbering{roman}
+\tableofcontents
+\newpage
+\pagenumbering{arabic}
+%)
+
+*** |====================================================================================|
+*** | System Base                                                                        |
+*** |====================================================================================|
+
+--- Reference/Value:
+--- @hr -> HeapReference
+--- @sr -> StackReference
+--- @ir -> IndexReference
+--- @fr -> FunctionReference
+--- @vr -> Variable
+--- @vl -> Value
+--- @ls -> ListContainer
+--- @tp -> TupleContainer
+--- @cl -> Closure
+--- @fi -> FunctionInfo
+
+--- Project:
+--- @sf -> SourceFile
+--- @sl -> SourceLine
+
+--- Expression:
+--- @np -> NoopExpression
+--- @lt -> LiteralExpression
+--- @op -> OperationExpression
+--- @sq -> SequenceExpression
+--- @ns -> NamespaceExpression
+--- @fn -> FunctionExpression
+--- @bk -> BlockExpression
+--- @cs -> ClauseExpression
+--- @if -> IfExpression
+--- @cf -> CaseExpression
+--- @tc -> TryExpression
+--- @rc -> ReceiveExpression
+
+--- Memory/Ambit/Context:
+--- @mc = MemoryCell
+--- @ms = MemorySegment
+--- @am = Ambit
+--- @cx = Context
+
+--- Message/Temporal/Execution:
+--- @mg -> Message
+--- @zz -> TemporalExpression
+--- @zx -> ExecState
+
+load base/utility.maude
+load base/vtypes.maude
+load base/nothing.maude
+load base/reference.maude
+load base/value.maude
+load base/types.maude
+load base/project.maude
+load base/opsymbol.maude
+load base/expression.maude
+load base/memory.maude
+load base/ambit.maude
+load base/context.maude
+load base/message.maude
+load base/startcall.maude
+load base/config.maude
+load base/status.maude
+load base/node.maude
+load base/process.maude
+load base/temporal.maude
+load base/execution.maude
+load base/machine.maude
+
+*** |====================================================================================|
+*** | System Erlang                                                                      |
+*** |====================================================================================|
+
+load erlang/parser.maude
+load erlang/operations.maude
+load erlang/infodata.maude
+load erlang/runner.maude
+
+*** |====================================================================================|
+*** | System Model Checking                                                              |
+*** |====================================================================================|
+
+load mchecking/mcp-message.maude
+load mchecking/mcp-process.maude
+load mchecking/mctransformer.maude
+
+---(%
+\end{document}
+%)
